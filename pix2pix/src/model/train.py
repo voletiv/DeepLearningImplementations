@@ -1,11 +1,15 @@
+import imageio
+import numpy as np
 import os
 import sys
 import time
-import numpy as np
+
 import models
+
+import keras.backend as K
 from keras.utils import generic_utils
 from keras.optimizers import Adam, SGD
-import keras.backend as K
+
 # Utils
 sys.path.append("../utils")
 import general_utils
@@ -30,11 +34,11 @@ def train(**kwargs):
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
     model_name = kwargs["model_name"]
+    save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     generator = kwargs["generator"]
     image_data_format = kwargs["image_data_format"]
     img_dim = kwargs["img_dim"]
     patch_size = kwargs["patch_size"]
-    bn_mode = kwargs["bn_mode"]
     label_smoothing = kwargs["use_label_smoothing"]
     label_flipping = kwargs["label_flipping"]
     dset = kwargs["dset"]
@@ -52,6 +56,9 @@ def train(**kwargs):
     # Get the number of non overlapping patch and the size of input image to the discriminator
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
 
+    plots_train = []
+    plots_val = []
+
     try:
 
         # Create optimizers
@@ -63,14 +70,12 @@ def train(**kwargs):
         generator_model = models.load("generator_unet_%s" % generator,
                                       img_dim,
                                       nb_patch,
-                                      bn_mode,
                                       use_mbd,
                                       batch_size)
         # Load discriminator model
         discriminator_model = models.load("DCGAN_discriminator",
                                           img_dim_disc,
                                           nb_patch,
-                                          bn_mode,
                                           use_mbd,
                                           batch_size)
 
@@ -137,10 +142,12 @@ def train(**kwargs):
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     # Get new images from validation
                     data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model,
-                                                    batch_size, image_data_format, "training")
+                                                    batch_size, image_data_format, "training", e*n_batch_per_epoch + batch_counter)
+                    plots_train.append(imageio.imread("../../figures/current_batch_training.png"))
                     X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
                     data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model,
-                                                    batch_size, image_data_format, "validation")
+                                                    batch_size, image_data_format, "validation", e*n_batch_per_epoch + batch_counter)
+                    plots_val.append(imageio.imread("../../figures/current_batch_validation.png"))
 
                 if batch_counter >= n_batch_per_epoch:
                     break
@@ -148,7 +155,8 @@ def train(**kwargs):
             print("")
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
 
-            if e % 5 == 0:
+            # Save weights
+            if (e + 1) % save_weights_every_n_epochs == 0:
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%s.h5' % (model_name, e))
                 generator_model.save_weights(gen_weights_path, overwrite=True)
 
@@ -160,3 +168,10 @@ def train(**kwargs):
 
     except KeyboardInterrupt:
         pass
+
+    if len(plots_train) > 0:
+        imageio.mimsave("../../figures/%s_train.gif" % dset, plots_train)
+
+    if len(plots_val) > 0:
+        imageio.mimsave("../../figures/%s_val.gif" % dset, plots_val)
+
