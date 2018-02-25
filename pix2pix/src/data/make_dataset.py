@@ -40,37 +40,42 @@ def format_image(img_path, size, nb_channels):
     return img_full, img_sketch
 
 
-def build_HDF5(jpeg_dir, nb_channels, size=256):
+def build_HDF5(jpeg_dir, processed_dir, nb_channels, size=256):
     """
     Gather the data in a single HDF5 file.
     """
 
     # Put train data in HDF5
     file_name = os.path.basename(jpeg_dir.rstrip("/"))
-    hdf5_file = os.path.join(data_dir, "%s_data.h5" % file_name)
+    hdf5_file = os.path.join(processed_dir, "%s_data.h5" % file_name)
     with h5py.File(hdf5_file, "w") as hfw:
 
         for dset_type in ["train", "test", "val"]:
 
-            list_img = [img for img in Path(jpeg_dir).glob('%s/*.jpg' % dset_type)]
-            list_img = [str(img) for img in list_img]
-            list_img.extend(list(Path(jpeg_dir).glob('%s/*.png' % dset_type)))
+            list_img = [str(img) for img in sorted(Path(jpeg_dir).glob('%s/*.jpg' % dset_type))]
+            list_img.extend(list(sorted(Path(jpeg_dir).glob('%s/*.png' % dset_type))))
             list_img = list(map(str, list_img))
             list_img = np.array(list_img)
+
+            if dset_type == 'train':
+                sample_image = np.zeros((nb_channels, size, size))
+                # print(sample_image.shape)
 
             data_full = hfw.create_dataset("%s_data_full" % dset_type,
                                            (0, nb_channels, size, size),
                                            maxshape=(None, 3, size, size),
-                                           dtype=np.uint8)
+                                           dtype=np.uint8, chunks=True,
+                                           compression='gzip', compression_opts=9)
 
             data_sketch = hfw.create_dataset("%s_data_sketch" % dset_type,
                                              (0, nb_channels, size, size),
                                              maxshape=(None, 3, size, size),
-                                             dtype=np.uint8)
+                                             dtype=np.uint8, chunks=True,
+                                             compression='gzip', compression_opts=9)
 
             num_files = len(list_img)
             chunk_size = 100
-            num_chunks = num_files / chunk_size
+            num_chunks = num_files // chunk_size + 1
             arr_chunks = np.array_split(np.arange(num_files), num_chunks)
 
             for chunk_idx in tqdm(arr_chunks):
@@ -88,14 +93,15 @@ def build_HDF5(jpeg_dir, nb_channels, size=256):
                 data_full[-arr_img_full.shape[0]:] = arr_img_full.astype(np.uint8)
                 data_sketch[-arr_img_sketch.shape[0]:] = arr_img_sketch.astype(np.uint8)
 
-def check_HDF5(jpeg_dir, nb_channels):
+
+def check_HDF5(jpeg_dir, processed_dir, nb_channels):
     """
     Plot images with landmarks to check the processing
     """
 
     # Get hdf5 file
     file_name = os.path.basename(jpeg_dir.rstrip("/"))
-    hdf5_file = os.path.join(data_dir, "%s_data.h5" % file_name)
+    hdf5_file = os.path.join(processed_dir, "%s_data.h5" % file_name)
 
     with h5py.File(hdf5_file, "r") as hf:
         data_full = hf["train_data_full"]
@@ -123,11 +129,11 @@ if __name__ == '__main__':
                         help='Desired Width == Height')
     parser.add_argument('--do_plot', action="store_true",
                         help='Plot the images to make sure the data processing went OK')
+    parser.add_argument('-o', dest='processed_dir', default="../../data/processed", type=str, help='path to processed images')
     args = parser.parse_args()
+    print(args)
 
-    data_dir = "../../data/processed"
-
-    build_HDF5(args.jpeg_dir, args.nb_channels, size=args.img_size)
+    build_HDF5(args.jpeg_dir, args.processed_dir, args.nb_channels, size=args.img_size)
 
     if args.do_plot:
-        check_HDF5(args.jpeg_dir, args.nb_channels)
+        check_HDF5(args.jpeg_dir, args.processed_dir, args.nb_channels)
