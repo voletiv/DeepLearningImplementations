@@ -1,6 +1,7 @@
 import imageio
 import numpy as np
 import os
+import subprocess
 import sys
 import time
 
@@ -43,6 +44,23 @@ def train(**kwargs):
     label_flipping = kwargs["label_flipping"]
     dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
+
+
+    # Check and make the dataset
+    # If .h5 file of dset is not present, try making it
+    if not os.path.exists("../../data/processed/%s_data.h5" % dset):
+        print("dset %s_data.h5 not present in '../../data/processed'!" % dset)
+        if not os.path.exists("../../data/%s/" % dset):
+            print("dset folder %s not present in '../../data'!\n\nERROR: Dataset .h5 file not made, and dataset not available in '../../data/'.\n\nQuitting." % dset)
+            return
+        else:
+            if not os.path.exists("../../data/%s/train" % dset) or not os.path.exists("../../data/%s/val" % dset) or not os.path.exists("../../data/%s/test" % dset):
+                print("'train', 'val' or 'test' folders not present in dset folder '../../data/%s'!\n\nERROR: Dataset must contain 'train', 'val' and 'test' folders.\n\nQuitting." % dset)
+                return
+            else:
+                print("Making %s dataset" % dset)
+                subprocess.call(['python3', '../data/make_dataset.py', '../../data/%s' % dset, '3'])
+                print("Done!")
 
     epoch_size = n_batch_per_epoch * batch_size
 
@@ -141,13 +159,13 @@ def train(**kwargs):
                 # Save images for visualization
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     # Get new images from validation
-                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model,
-                                                    batch_size, image_data_format, "training", e*n_batch_per_epoch + batch_counter)
-                    plots_train.append(imageio.imread("../../figures/current_batch_training.png"))
+                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                    model_name, "training", e*n_batch_per_epoch + batch_counter)
+                    plots_train.append(imageio.imread("../../figures/" + model_name + "_current_batch_training.png"))
                     X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
-                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model,
-                                                    batch_size, image_data_format, "validation", e*n_batch_per_epoch + batch_counter)
-                    plots_val.append(imageio.imread("../../figures/current_batch_validation.png"))
+                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                    model_name, "validation", e*n_batch_per_epoch + batch_counter)
+                    plots_val.append(imageio.imread("../../figures/" + model_name + "_current_batch_validation.png"))
 
                 if batch_counter >= n_batch_per_epoch:
                     break
@@ -170,8 +188,8 @@ def train(**kwargs):
         pass
 
     if len(plots_train) > 0:
-        imageio.mimsave("../../figures/%s_train.gif" % dset, plots_train)
+        imageio.mimsave("../../figures/%s_train.gif" % model_name, plots_train)
 
     if len(plots_val) > 0:
-        imageio.mimsave("../../figures/%s_val.gif" % dset, plots_val)
+        imageio.mimsave("../../figures/%s_val.gif" % model_name, plots_val)
 
