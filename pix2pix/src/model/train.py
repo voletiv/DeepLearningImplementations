@@ -38,7 +38,6 @@ def train(**kwargs):
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     generator = kwargs["generator"]
     image_data_format = kwargs["image_data_format"]
-    img_dim = kwargs["img_dim"]
     patch_size = kwargs["patch_size"]
     label_smoothing = kwargs["use_label_smoothing"]
     label_flipping = kwargs["label_flipping"]
@@ -160,12 +159,10 @@ def train(**kwargs):
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
                                                     model_name, "training", e*n_batch_per_epoch + batch_counter)
-                    plots_train.append(imageio.imread(os.path.join("../../figures", model_name, model_name + "_current_batch_training.png")))
                     # Get new images from validation
                     X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
                     data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
                                                     model_name, "validation", e*n_batch_per_epoch + batch_counter)
-                    plots_val.append(imageio.imread(os.path.join("../../figures", model_name, model_name + "_current_batch_validation.png")))
 
                 if batch_counter >= n_batch_per_epoch:
                     break

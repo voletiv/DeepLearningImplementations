@@ -1,9 +1,12 @@
+import cv2
+import h5py
+import imageio
+import matplotlib.pylab as plt
+import numpy as np
+import os
+
 from keras.datasets import mnist
 from keras.utils import np_utils
-import numpy as np
-import h5py
-
-import matplotlib.pylab as plt
 
 
 def normalization(X):
@@ -133,9 +136,9 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     X_full = inverse_normalization(X_full)
     X_gen = inverse_normalization(X_gen)
 
-    Xs = X_sketch[:8]
-    Xg = X_gen[:8]
-    Xr = X_full[:8]
+    Xs = X_sketch[:4]
+    Xg = X_gen[:4]
+    Xr = X_full[:4]
 
     if image_data_format == "channels_last":
         X = np.concatenate((Xs, Xg, Xr), axis=0)
@@ -165,3 +168,23 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     plt.savefig(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix))
     plt.clf()
     plt.close()
+
+    # Make gif
+    gif_frames = []
+
+    # Read old gif frames
+    try:
+        gif_frames_reader = imageio.get_reader(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
+        for frame in gif_frames_reader:
+            gif_frames.append(frame[:, :, :3])
+    except:
+        pass
+
+    # Append new frame
+    im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0), 'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (1,1,1), 1, cv2.LINE_AA)
+    gif_frames.append(im)
+
+    # Save gif
+    imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
+
+
