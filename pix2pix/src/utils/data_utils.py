@@ -162,6 +162,6 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
         plt.imshow(Xr)
     plt.title("Iteration " + str(iteration_number))
     plt.axis("off")
-    plt.savefig("../../figures/" + model_name + "_current_batch_%s.png" % suffix)
+    plt.savefig(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix))
     plt.clf()
     plt.close()

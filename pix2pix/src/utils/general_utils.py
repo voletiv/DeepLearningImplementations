@@ -35,11 +35,10 @@ def create_dir(dirs):
 
 def setup_logging(model_name):
 
-    model_dir = "../../models"
     # Output path where we store experiment log and weights
-    model_dir = os.path.join(model_dir, model_name)
+    model_dir = os.path.join("../../models", model_name)
 
-    fig_dir = "../../figures"
+    fig_dir = os.path.join("../../figures", model_name)
 
     # Create if it does not exist
     create_dir([model_dir, fig_dir])
