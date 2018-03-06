@@ -105,8 +105,7 @@ def train(**kwargs):
                                    discriminator_model,
                                    img_dim,
                                    patch_size,
-                                   image_data_format,
-                                   model_name)
+                                   image_data_format)
 
         loss = [l1_loss, 'binary_crossentropy']
         loss_weights = [1E1, 1]
