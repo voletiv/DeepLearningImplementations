@@ -85,7 +85,7 @@ def deconv_block_unet(x, x2, f, h, w, batch_size, name, bn_axis, bn=True, dropou
     return x
 
 
-def generator_unet_upsampling(img_dim, model_name="generator_unet_upsampling"):
+def generator_unet_upsampling(img_dim):
 
     nb_filters = 64
 
@@ -140,7 +140,7 @@ def generator_unet_upsampling(img_dim, model_name="generator_unet_upsampling"):
     return generator_unet
 
 
-def generator_unet_deconv(img_dim, batch_size, model_name="generator_unet_deconv"):
+def generator_unet_deconv(img_dim, batch_size):
 
     assert K.backend() == "tensorflow", "Not implemented with theano backend"
 
@@ -198,7 +198,7 @@ def generator_unet_deconv(img_dim, batch_size, model_name="generator_unet_deconv
     return generator_unet
 
 
-def DCGAN_discriminator(img_dim, nb_patch, model_name="DCGAN_discriminator", use_mbd=True):
+def DCGAN_discriminator(img_dim, nb_patch, use_mbd=True):
     """
     Discriminator model of the DCGAN
 
@@ -266,7 +266,7 @@ def DCGAN_discriminator(img_dim, nb_patch, model_name="DCGAN_discriminator", use
 
     x_out = Dense(2, activation="softmax", name="disc_output")(x)
 
-    discriminator_model = Model(inputs=list_input, outputs=[x_out], name=model_name)
+    discriminator_model = Model(inputs=list_input, outputs=[x_out], name="DCGAN_discriminator")
 
     return discriminator_model
 
@@ -304,27 +304,27 @@ def DCGAN(generator, discriminator_model, img_dim, patch_size, image_dim_orderin
     return DCGAN
 
 
-def load(model_name, img_dim, nb_patch, use_mbd, batch_size):
+def load(network_name, img_dim, nb_patch, use_mbd, batch_size, model_name):
 
-    if model_name == "generator_unet_upsampling":
-        model = generator_unet_upsampling(img_dim, model_name=model_name)
+    if network_name == "generator_unet_upsampling":
+        model = generator_unet_upsampling(img_dim)
         model.summary()
         from keras.utils import plot_model
-        plot_model(model, to_file="../../figures/%s.png" % model_name, show_shapes=True, show_layer_names=True)
+        plot_model(model, to_file="../../figures/%s/%s.png" % (model_name, network_name), show_shapes=True, show_layer_names=True)
         return model
 
-    if model_name == "generator_unet_deconv":
-        model = generator_unet_deconv(img_dim, batch_size, model_name=model_name)
+    if network_name == "generator_unet_deconv":
+        model = generator_unet_deconv(img_dim, batch_size)
         model.summary()
         from keras.utils import plot_model
-        plot_model(model, to_file="../../figures/%s.png" % model_name, show_shapes=True, show_layer_names=True)
+        plot_model(model, to_file="../../figures/%s/%s.png" % (model_name, network_name), show_shapes=True, show_layer_names=True)
         return model
 
-    if model_name == "DCGAN_discriminator":
-        model = DCGAN_discriminator(img_dim, nb_patch, model_name=model_name, use_mbd=use_mbd)
+    if network_name == "DCGAN_discriminator":
+        model = DCGAN_discriminator(img_dim, nb_patch, use_mbd=use_mbd)
         model.summary()
         from keras.utils import plot_model
-        plot_model(model, to_file="../../figures/%s.png" % model_name, show_shapes=True, show_layer_names=True)
+        plot_model(model, to_file="../../figures/%s/%s.png" % (model_name, network_name), show_shapes=True, show_layer_names=True)
         return model
 
 

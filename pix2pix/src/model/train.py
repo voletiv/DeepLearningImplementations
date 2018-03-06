@@ -36,7 +36,7 @@ def train(**kwargs):
     nb_epoch = kwargs["nb_epoch"]
     model_name = kwargs["model_name"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
-    generator = kwargs["generator"]
+    generator_type = kwargs["generator_type"]
     image_data_format = kwargs["image_data_format"]
     patch_size = kwargs["patch_size"]
     label_smoothing = kwargs["use_label_smoothing"]
@@ -84,17 +84,19 @@ def train(**kwargs):
         opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
         # Load generator model
-        generator_model = models.load("generator_unet_%s" % generator,
+        generator_model = models.load("generator_unet_%s" % generator_type,
                                       img_dim,
                                       nb_patch,
                                       use_mbd,
-                                      batch_size)
+                                      batch_size,
+                                      model_name)
         # Load discriminator model
         discriminator_model = models.load("DCGAN_discriminator",
                                           img_dim_disc,
                                           nb_patch,
                                           use_mbd,
-                                          batch_size)
+                                          batch_size,
+                                          model_name)
 
         generator_model.compile(loss='mae', optimizer=opt_discriminator)
         discriminator_model.trainable = False
@@ -103,7 +105,8 @@ def train(**kwargs):
                                    discriminator_model,
                                    img_dim,
                                    patch_size,
-                                   image_data_format)
+                                   image_data_format,
+                                   model_name)
 
         loss = [l1_loss, 'binary_crossentropy']
         loss_weights = [1E1, 1]
