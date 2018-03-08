@@ -1,6 +1,7 @@
 import imageio
 import numpy as np
 import os
+import psutil
 import subprocess
 import sys
 import time
@@ -19,6 +20,11 @@ import data_utils
 
 def l1_loss(y_true, y_pred):
     return K.sum(K.abs(y_pred - y_true), axis=-1)
+
+
+def check_this_process_memory():
+    memoryUse = psutil.Process(os.getpid()).memory_info()[0]/2.**30  # memory use in GB
+    print('memory use: %.4f' % memoryUse, 'GB')
 
 
 def train(**kwargs):
@@ -44,7 +50,6 @@ def train(**kwargs):
     dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
 
-
     # Check and make the dataset
     # If .h5 file of dset is not present, try making it
     if not os.path.exists("../../data/processed/%s_data.h5" % dset):
@@ -68,13 +73,16 @@ def train(**kwargs):
 
     # Load and rescale data
     X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
+    check_this_process_memory()
+    print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
+    print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
+    print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
+    print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+
     img_dim = X_full_train.shape[-3:]
 
     # Get the number of non overlapping patch and the size of input image to the discriminator
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
-
-    plots_train = []
-    plots_val = []
 
     try:
 
@@ -90,6 +98,7 @@ def train(**kwargs):
                                       use_mbd,
                                       batch_size,
                                       model_name)
+
         # Load discriminator model
         discriminator_model = models.load("DCGAN_discriminator",
                                           img_dim_disc,
@@ -185,10 +194,3 @@ def train(**kwargs):
 
     except KeyboardInterrupt:
         pass
-
-    if len(plots_train) > 0:
-        imageio.mimsave("../../figures/%s_train.gif" % model_name, plots_train)
-
-    if len(plots_val) > 0:
-        imageio.mimsave("../../figures/%s_val.gif" % model_name, plots_val)
-
