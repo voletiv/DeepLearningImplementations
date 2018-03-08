@@ -9,6 +9,40 @@ def launch_training(**kwargs):
     train.train(**kwargs)
 
 
+def parse_my_args(patch_size=[64, 64], backend='tensorflow', generator_type='upsampling',
+                  dset='Mahesh_Babu_black_mouth_polygons', batch_size=2, n_batch_per_epoch=2, nb_epoch=2000, save_weights_every_n_epochs=10):
+    parser = argparse.ArgumentParser(description='Train model')
+    parser.add_argument('patch_size', type=int, nargs=2, action="store", help="Patch size for D")
+    parser.add_argument('--backend', type=str, default="tensorflow", help="theano or tensorflow")
+    parser.add_argument('--generator_type', type=str, default="upsampling", help="upsampling or deconv")
+    parser.add_argument('--dset', type=str, default="facades", help="facades")
+    parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
+    parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
+    parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
+    parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
+    parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
+    parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
+    parser.add_argument('--label_flipping', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
+    # parser.add_argument('--cfg', action="store", dest="cfg",
+    #                     help='cfg model file (/path/to/model_config.yaml)', type=str)
+    # parser.add_argument('--wts', action="store", dest="weights",
+    #                     help='weights model file (/path/to/model_weights.pkl)', type=str)
+    # parser.add_argument('--output-dir', action="store", dest="output_dir",
+    #                     help='directory for visualization pdfs (default: /tmp/infer_simple)', type=str)
+    # parser.add_argument('--image-ext', action="store", dest="image_ext",
+    #                     help='image file name extension (default: jpg)', type=str)
+    # parser.add_argument('im_or_folder', help='image or folder of images', default=None)
+    # output_dir = "/home/play/data/detectron/voletiv/driveai/" + ".".join(yaml_file.split('/')[-1].split('.')[:-1])
+    return parser.parse_args([str(patch_size[0]), str(patch_size[1]),
+                              '--backend', backend,
+                              '--generator_type', generator_type,
+                              '--dset', dset,
+                              '--batch_size', str(batch_size),
+                              '--n_batch_per_epoch', str(n_batch_per_epoch),
+                              '--nb_epoch', str(nb_epoch),
+                              '--save_weights_every_n_epochs', str(save_weights_every_n_epochs)])
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train model')
@@ -26,6 +60,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
+
+    # args = parse_my_args()
 
     # Set the backend by modifying the env variable
     if args.backend == "theano":
@@ -46,7 +82,7 @@ if __name__ == "__main__":
 
     import train
 
-    model_name = args.dset + "_" + str(round(time.time()))
+    model_name = str(round(time.time())) + '_' + args.dset
     print("\n\nMODEL NAME: ", model_name, '\n\n')
 
     # Set default params
