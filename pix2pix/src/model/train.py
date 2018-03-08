@@ -166,6 +166,8 @@ def train(**kwargs):
                                                 ("G L1", gen_loss[1]),
                                                 ("G logloss", gen_loss[2])])
 
+                check_this_process_memory()
+
                 # Save images for visualization
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
