@@ -10,12 +10,10 @@ from keras.utils import np_utils
 
 
 def normalization(X):
-
     return X / 127.5 - 1
 
 
 def inverse_normalization(X):
-
     return np.array((X + 1.) / 2.)
 
 
@@ -63,27 +61,37 @@ def load_data(dset, image_data_format):
 
     with h5py.File("../../data/processed/%s_data.h5" % dset, "r") as hf:
 
+        print("Loading train_data_full")
         X_full_train = hf["train_data_full"][:].astype(np.float32)
-        X_full_train = normalization(X_full_train)
 
+        print("Loading train_data_sketch")
         X_sketch_train = hf["train_data_sketch"][:].astype(np.float32)
-        X_sketch_train = normalization(X_sketch_train)
 
-        if image_data_format == "channels_last":
-            X_full_train = X_full_train.transpose(0, 2, 3, 1)
-            X_sketch_train = X_sketch_train.transpose(0, 2, 3, 1)
-
+        print("Loading val_data_full")
         X_full_val = hf["val_data_full"][:].astype(np.float32)
-        X_full_val = normalization(X_full_val)
 
+        print("Loading val_data_sketch")
         X_sketch_val = hf["val_data_sketch"][:].astype(np.float32)
-        X_sketch_val = normalization(X_sketch_val)
 
-        if image_data_format == "channels_last":
-            X_full_val = X_full_val.transpose(0, 2, 3, 1)
-            X_sketch_val = X_sketch_val.transpose(0, 2, 3, 1)
+    X_full_train = normalization(X_full_train)
 
-        return X_full_train, X_sketch_train, X_full_val, X_sketch_val
+    X_sketch_train = normalization(X_sketch_train)
+
+    if image_data_format == "channels_last":
+        print("transposing dimensions to make channels_last")
+        X_full_train = X_full_train.transpose(0, 2, 3, 1)
+        X_sketch_train = X_sketch_train.transpose(0, 2, 3, 1)
+
+    X_full_val = normalization(X_full_val)
+
+    X_sketch_val = normalization(X_sketch_val)
+
+    if image_data_format == "channels_last":
+        print("transposing dimensions to make channels_last")
+        X_full_val = X_full_val.transpose(0, 2, 3, 1)
+        X_sketch_val = X_sketch_val.transpose(0, 2, 3, 1)
+
+    return X_full_train, X_sketch_train, X_full_val, X_sketch_val
 
 
 def gen_batch(X1, X2, batch_size):
