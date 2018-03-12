@@ -147,7 +147,7 @@ def train(**kwargs):
             prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
             # Find prev model name, epoch
             model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
-            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[-1][:-3])
+            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[-1][:-3]) + 1
             # Load prev_model
             generator_model.load_weights(prev_model_latest_gen)
             discriminator_model.load_weights(prev_model_latest_disc)
@@ -204,7 +204,7 @@ def train(**kwargs):
             gen_L1_losses.append(gen_loss[1])
             gen_log_losses.append(gen_loss[2])
             check_this_process_memory()
-            print('Epoch %s/%s, Time: %s' % (init_epoch + e + 1, nb_epoch, time.time() - start))
+            print('Epoch %s/%s, Time: %.4f' % (init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,

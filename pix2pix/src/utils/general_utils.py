@@ -42,6 +42,7 @@ def setup_logging(model_name):
     fig_dir = os.path.join("../../figures", model_name)
 
     # Create if it does not exist
+    print("Creating", model_dir, "and", fig_dir)
     create_dir([model_dir, fig_dir])
 
     # Copy main.py, train.py and model.py
