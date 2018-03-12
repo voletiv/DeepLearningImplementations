@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 
 def remove_files(files):
@@ -42,3 +43,9 @@ def setup_logging(model_name):
 
     # Create if it does not exist
     create_dir([model_dir, fig_dir])
+
+    # Copy main.py, train.py and model.py
+    subprocess.call(['cp', 'main.py', model_dir])
+    subprocess.call(['cp', 'models.py', model_dir])
+    subprocess.call(['cp', 'train.py', model_dir])
+
