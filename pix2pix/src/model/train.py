@@ -88,117 +88,116 @@ def train(**kwargs):
     # Get the number of non overlapping patch and the size of input image to the discriminator
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
 
-    # try:
+    try:
 
-    # Create optimizers
-    opt_dcgan = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-    # opt_discriminator = SGD(lr=1E-3, momentum=0.9, nesterov=True)
-    opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        # Create optimizers
+        opt_dcgan = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+        # opt_discriminator = SGD(lr=1E-3, momentum=0.9, nesterov=True)
+        opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
-    # Load generator model
-    generator_model = models.load("generator_unet_%s" % generator_type,
-                                  img_dim,
-                                  nb_patch,
-                                  use_mbd,
-                                  batch_size,
-                                  model_name)
-
-    generator_model.compile(loss='mae', optimizer=opt_discriminator)
-
-    # Load discriminator model
-    discriminator_model = models.load("DCGAN_discriminator",
-                                      img_dim_disc,
+        # Load generator model
+        generator_model = models.load("generator_unet_%s" % generator_type,
+                                      img_dim,
                                       nb_patch,
                                       use_mbd,
                                       batch_size,
                                       model_name)
 
-    discriminator_model.trainable = False
+        generator_model.compile(loss='mae', optimizer=opt_discriminator)
 
-    DCGAN_model = models.DCGAN(generator_model,
-                               discriminator_model,
-                               img_dim,
-                               patch_size,
-                               image_data_format)
+        # Load discriminator model
+        discriminator_model = models.load("DCGAN_discriminator",
+                                          img_dim_disc,
+                                          nb_patch,
+                                          use_mbd,
+                                          batch_size,
+                                          model_name)
 
-    loss = [l1_loss, 'binary_crossentropy']
-    loss_weights = [1E1, 1]
-    DCGAN_model.compile(loss=loss, loss_weights=loss_weights, optimizer=opt_dcgan)
+        discriminator_model.trainable = False
 
-    discriminator_model.trainable = True
-    discriminator_model.compile(loss='binary_crossentropy', optimizer=opt_discriminator)
+        DCGAN_model = models.DCGAN(generator_model,
+                                   discriminator_model,
+                                   img_dim,
+                                   patch_size,
+                                   image_data_format)
 
-    gen_loss = 100
-    disc_loss = 100
+        loss = [l1_loss, 'binary_crossentropy']
+        loss_weights = [1E1, 1]
+        DCGAN_model.compile(loss=loss, loss_weights=loss_weights, optimizer=opt_dcgan)
 
-    # Load prev_model
-    generator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/gen_weights_epoch1629.h5')
-    discriminator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/disc_weights_epoch1629.h5')
-    DCGAN_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/DCGAN_weights_epoch1629.h5')
+        discriminator_model.trainable = True
+        discriminator_model.compile(loss='binary_crossentropy', optimizer=opt_discriminator)
 
-    # Load and rescale data
-    X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
-    check_this_process_memory()
-    print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
-    print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
-    print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
-    print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+        gen_loss = 100
+        disc_loss = 100
 
-    # Start training
-    print("Start training")
-    for e in range(nb_epoch):
-        # Initialize progbar and batch counter
-        progbar = generic_utils.Progbar(epoch_size)
-        batch_counter = 1
-        start = time.time()
-        for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
-            # Create a batch to feed the discriminator model
-            X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
-                                                       X_sketch_batch,
-                                                       generator_model,
-                                                       batch_counter,
-                                                       patch_size,
-                                                       image_data_format,
-                                                       label_smoothing=label_smoothing,
-                                                       label_flipping=label_flipping)
-            # Update the discriminator
-            disc_loss = discriminator_model.train_on_batch(X_disc, y_disc)
-            # Create a batch to feed the generator model
-            X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
-            y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
-            y_gen[:, 1] = 1
-            # Freeze the discriminator
-            discriminator_model.trainable = False
-            gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
-            # Unfreeze the discriminator
-            discriminator_model.trainable = True
-            batch_counter += 1
-            progbar.add(batch_size, values=[("D logloss", disc_loss),
-                                            ("G tot", gen_loss[0]),
-                                            ("G L1", gen_loss[1]),
-                                            ("G logloss", gen_loss[2])])
-            check_this_process_memory()
-            # Save images for visualization
-            if batch_counter % n_batch_per_epoch == 0:
-                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                model_name, "training", e*n_batch_per_epoch + batch_counter)
-                # Get new images from validation
-                X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
-                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                model_name, "validation", e*n_batch_per_epoch + batch_counter)
-            if batch_counter >= n_batch_per_epoch:
-                break
-        print("")
-        print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
-        # Save weights
-        if (e + 1) % save_weights_every_n_epochs == 0:
-            gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%04d.h5' % (model_name, e))
-            generator_model.save_weights(gen_weights_path, overwrite=True)
-            disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%04d.h5' % (model_name, e))
-            discriminator_model.save_weights(disc_weights_path, overwrite=True)
-            DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%04d.h5' % (model_name, e))
-            DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
+        # Load prev_model
+        generator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/gen_weights_epoch1629.h5')
+        discriminator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/disc_weights_epoch1629.h5')
+        DCGAN_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/DCGAN_weights_epoch1629.h5')
 
+        # Load and rescale data
+        X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
+        check_this_process_memory()
+        print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
+        print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
+        print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
+        print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
 
-        except KeyboardInterrupt:
-            pass
+        # Start training
+        print("Start training")
+        for e in range(nb_epoch):
+            # Initialize progbar and batch counter
+            progbar = generic_utils.Progbar(epoch_size)
+            batch_counter = 1
+            start = time.time()
+            for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
+                # Create a batch to feed the discriminator model
+                X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
+                                                           X_sketch_batch,
+                                                           generator_model,
+                                                           batch_counter,
+                                                           patch_size,
+                                                           image_data_format,
+                                                           label_smoothing=label_smoothing,
+                                                           label_flipping=label_flipping)
+                # Update the discriminator
+                disc_loss = discriminator_model.train_on_batch(X_disc, y_disc)
+                # Create a batch to feed the generator model
+                X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
+                y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
+                y_gen[:, 1] = 1
+                # Freeze the discriminator
+                discriminator_model.trainable = False
+                gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                # Unfreeze the discriminator
+                discriminator_model.trainable = True
+                batch_counter += 1
+                progbar.add(batch_size, values=[("D logloss", disc_loss),
+                                                ("G tot", gen_loss[0]),
+                                                ("G L1", gen_loss[1]),
+                                                ("G logloss", gen_loss[2])])
+                check_this_process_memory()
+                # Save images for visualization
+                if batch_counter % n_batch_per_epoch == 0:
+                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                    model_name, "training", e*n_batch_per_epoch + batch_counter)
+                    # Get new images from validation
+                    X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
+                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                    model_name, "validation", e*n_batch_per_epoch + batch_counter)
+                if batch_counter >= n_batch_per_epoch:
+                    break
+            print("")
+            print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
+            # Save weights
+            if (e + 1) % save_weights_every_n_epochs == 0:
+                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%04d.h5' % (model_name, e))
+                generator_model.save_weights(gen_weights_path, overwrite=True)
+                disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%04d.h5' % (model_name, e))
+                discriminator_model.save_weights(disc_weights_path, overwrite=True)
+                DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%04d.h5' % (model_name, e))
+                DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
+
+    except KeyboardInterrupt:
+        pass
