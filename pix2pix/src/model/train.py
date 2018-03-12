@@ -168,7 +168,7 @@ def train(**kwargs):
             # Initialize progbar and batch counter
             # progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 0
-            # start = time.time()
+            start = time.time()
             for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
                 # Create a batch to feed the discriminator model
                 X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
