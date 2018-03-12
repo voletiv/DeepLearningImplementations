@@ -1,3 +1,4 @@
+import glob
 import imageio
 import numpy as np
 import os
@@ -42,6 +43,7 @@ def train(**kwargs):
     nb_epoch = kwargs["nb_epoch"]
     model_name = kwargs["model_name"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
+    visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
     generator_type = kwargs["generator_type"]
     image_data_format = kwargs["image_data_format"]
     patch_size = kwargs["patch_size"]
@@ -80,8 +82,9 @@ def train(**kwargs):
 
     epoch_size = n_batch_per_epoch * batch_size
 
-    # Setup environment (logging directory etc)
-    general_utils.setup_logging(model_name)
+    # Setup environment (logging directory etc), if no prev_model is mentioned
+    if not prev_model:
+        general_utils.setup_logging(model_name)
 
     # img_dim = X_full_train.shape[-3:]
     img_dim = (256, 256, 3)
@@ -131,16 +134,25 @@ def train(**kwargs):
         discriminator_model.trainable = True
         discriminator_model.compile(loss='binary_crossentropy', optimizer=opt_discriminator)
 
-        gen_loss = 100
-        disc_loss = 100
+        disc_losses = []
+        gen_total_losses = []
+        gen_L1_losses = []
+        gen_log_losses = []
 
         # Load prev_model
-        generator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/gen_weights_epoch1629.h5')
-        discriminator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/disc_weights_epoch1629.h5')
-        DCGAN_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/DCGAN_weights_epoch1629.h5')
-        init_epoch = 1629
+        if prev_model:
+            print('\n\nLoading prev_model from', prev_model, '...\n\n')
+            prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
+            prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*.h5')))[-1]
+            prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
+            model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
+            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[-1][:-3])
+            generator_model.load_weights(prev_model_latest_gen)
+            discriminator_model.load_weights(prev_model_latest_disc)
+            DCGAN_model.load_weights(prev_model_latest_DCGAN)
 
         # Load and rescale data
+        print('\n\nLoading data...\n\n')
         X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
         check_this_process_memory()
         print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
@@ -148,13 +160,8 @@ def train(**kwargs):
         print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
         print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
 
-        disc_losses = []
-        gen_total_losses = []
-        gen_L1_losses = []
-        gen_log_losses = []
-
         # Start training
-        print("Start training")
+        print("\n\nStarting training\n\n")
         for e in range(nb_epoch):
             # Initialize progbar and batch counter
             progbar = generic_utils.Progbar(epoch_size)
@@ -193,7 +200,7 @@ def train(**kwargs):
                 gen_log_losses.append(gen_loss[2])
                 check_this_process_memory()
             print("")
-            print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
+            print('Epoch %s/%s, Time: %s' % (init_epoch + e + 1, nb_epoch, time.time() - start))
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
@@ -208,11 +215,11 @@ def train(**kwargs):
                 break
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
-                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%04d.h5' % (model_name, e))
+                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 generator_model.save_weights(gen_weights_path, overwrite=True)
-                disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%04d.h5' % (model_name, e))
+                disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 discriminator_model.save_weights(disc_weights_path, overwrite=True)
-                DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%04d.h5' % (model_name, e))
+                DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
 
     except KeyboardInterrupt:
