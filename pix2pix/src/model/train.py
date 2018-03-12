@@ -166,9 +166,9 @@ def train(**kwargs):
         print("\n\nStarting training\n\n")
         for e in range(nb_epoch):
             # Initialize progbar and batch counter
-            progbar = generic_utils.Progbar(epoch_size)
-            batch_counter = 1
-            start = time.time()
+            # progbar = generic_utils.Progbar(epoch_size)
+            batch_counter = 0
+            # start = time.time()
             for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
                 # Create a batch to feed the discriminator model
                 X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
@@ -190,18 +190,20 @@ def train(**kwargs):
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
                 # Unfreeze the discriminator
                 discriminator_model.trainable = True
-                batch_counter += 1
                 # Progress
-                progbar.add(batch_size, values=[("D logloss", disc_loss),
-                                                ("G tot", gen_loss[0]),
-                                                ("G L1", gen_loss[1]),
-                                                ("G logloss", gen_loss[2])])
-                disc_losses.append(disc_loss)
-                gen_total_losses.append(gen_loss[0])
-                gen_L1_losses.append(gen_loss[1])
-                gen_log_losses.append(gen_loss[2])
-                check_this_process_memory()
-            print("")
+                # progbar.add(batch_size, values=[("D logloss", disc_loss),
+                #                                 ("G tot", gen_loss[0]),
+                #                                 ("G L1", gen_loss[1]),
+                #                                 ("G logloss", gen_loss[2])])
+                print("Epoch", str(init_epoch+e+1), "batch", str(batch_counter+1), "D_logloss", disc_loss, "G_tot", gen_loss[0], "G_L1", gen_loss[1], "G_log", gen_loss[2])
+                batch_counter += 1
+                if batch_counter >= n_batch_per_epoch:
+                    break
+            disc_losses.append(disc_loss)
+            gen_total_losses.append(gen_loss[0])
+            gen_L1_losses.append(gen_loss[1])
+            gen_log_losses.append(gen_loss[2])
+            check_this_process_memory()
             print('Epoch %s/%s, Time: %s' % (init_epoch + e + 1, nb_epoch, time.time() - start))
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
@@ -212,9 +214,7 @@ def train(**kwargs):
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1)
                 # Plot losses
-                data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses)
-            if batch_counter >= n_batch_per_epoch:
-                break
+                data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch)
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
