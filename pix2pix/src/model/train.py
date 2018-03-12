@@ -49,6 +49,7 @@ def train(**kwargs):
     label_flipping = kwargs["label_flipping"]
     dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
+    prev_model = kwargs["prev_model"]
 
     # batch_size = args.batch_size
     # n_batch_per_epoch = args.n_batch_per_epoch
@@ -89,6 +90,8 @@ def train(**kwargs):
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
 
     try:
+
+        init_epoch = 0
 
         # Create optimizers
         opt_dcgan = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
@@ -135,6 +138,7 @@ def train(**kwargs):
         generator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/gen_weights_epoch1629.h5')
         discriminator_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/disc_weights_epoch1629.h5')
         DCGAN_model.load_weights('../../models/1520525495_Mahesh_Babu_black_mouth_polygons/DCGAN_weights_epoch1629.h5')
+        init_epoch = 1629
 
         # Load and rescale data
         X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
@@ -143,6 +147,11 @@ def train(**kwargs):
         print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
         print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
         print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+
+        disc_losses = []
+        gen_total_losses = []
+        gen_L1_losses = []
+        gen_log_losses = []
 
         # Start training
         print("Start training")
@@ -173,23 +182,30 @@ def train(**kwargs):
                 # Unfreeze the discriminator
                 discriminator_model.trainable = True
                 batch_counter += 1
+                # Progress
                 progbar.add(batch_size, values=[("D logloss", disc_loss),
                                                 ("G tot", gen_loss[0]),
                                                 ("G L1", gen_loss[1]),
                                                 ("G logloss", gen_loss[2])])
+                disc_losses.append(disc_loss)
+                gen_total_losses.append(gen_loss[0])
+                gen_L1_losses.append(gen_loss[1])
+                gen_log_losses.append(gen_loss[2])
                 check_this_process_memory()
-                # Save images for visualization
-                if batch_counter % n_batch_per_epoch == 0:
-                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                    model_name, "training", e*n_batch_per_epoch + batch_counter)
-                    # Get new images from validation
-                    X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
-                    data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                    model_name, "validation", e*n_batch_per_epoch + batch_counter)
-                if batch_counter >= n_batch_per_epoch:
-                    break
             print("")
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
+            # Save images for visualization
+            if (e + 1) % visualize_images_every_n_epochs == 0:
+                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                model_name, "training", init_epoch + e + 1)
+                # Get new images from validation
+                X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
+                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                                                model_name, "validation", init_epoch + e + 1)
+                # Plot losses
+                data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses)
+            if batch_counter >= n_batch_per_epoch:
+                break
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%04d.h5' % (model_name, e))

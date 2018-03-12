@@ -196,3 +196,41 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
 
 
+def plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, init_epoch=0):
+    # epochs = np.arange(len(disc_losses))
+    epochs = np.arange(len(disc_losses)) + init_epoch
+    fig = plt.figure()
+    plt.subplot(121)
+    plt.plot(epochs, disc_losses, label='Discriminator')
+    plt.legend()
+    plt.title("Discriminator loss")
+    plt.xlabel("Epochs")
+    # fig.canvas.draw()
+    # x_tick_labels = [item.get_text() for item in plt.gca().get_xticklabels()]
+    # new_x_tick_labels = []
+    # for x_tick_label in x_tick_labels:
+    #     try:
+    #         new_x_tick_labels.append(int(x_tick_label) + init_epoch)
+    #     except:
+    #         new_x_tick_labels.append(x_tick_label)
+    # plt.gca().set_xticklabels(new_x_tick_labels)
+    plt.subplot(122)
+    plt.plot(epochs, gen_total_losses, label='Gen_Total')
+    plt.plot(epochs, gen_L1_losses, label='Gen_L1')
+    plt.plot(epochs, gen_log_losses, label='Gen_log')
+    plt.legend()
+    plt.title("Generator loss")
+    plt.xlabel("Epochs")
+    # fig.canvas.draw()
+    # x_tick_labels = [item.get_text() for item in plt.gca().get_xticklabels()]
+    # new_x_tick_labels = []
+    # for x_tick_label in x_tick_labels:
+    #     try:
+    #         new_x_tick_labels.append(int(x_tick_label) + init_epoch)
+    #     except:
+    #         new_x_tick_labels.append(x_tick_label)
+    # plt.gca().set_xticklabels(new_x_tick_labels)
+    plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"))
+    plt.clf()
+    plt.close()
+
