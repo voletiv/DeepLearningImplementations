@@ -83,8 +83,8 @@ def train(**kwargs):
     epoch_size = n_batch_per_epoch * batch_size
 
     # Setup environment (logging directory etc), if no prev_model is mentioned
-    if not prev_model:
-        general_utils.setup_logging(model_name)
+    # if not prev_model:
+    general_utils.setup_logging(model_name)
 
     # img_dim = X_full_train.shape[-3:]
     img_dim = (256, 256, 3)
@@ -145,8 +145,10 @@ def train(**kwargs):
             prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
             prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*.h5')))[-1]
             prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
+            # Find prev model name, epoch
             model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
             init_epoch = int(prev_model_latest_DCGAN.split('epoch')[-1][:-3])
+            # Load prev_model
             generator_model.load_weights(prev_model_latest_gen)
             discriminator_model.load_weights(prev_model_latest_disc)
             DCGAN_model.load_weights(prev_model_latest_DCGAN)
