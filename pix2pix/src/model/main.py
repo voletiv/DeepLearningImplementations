@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 "nb_epoch": args.nb_epoch,
                 "model_name": model_name,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
-                "visualize_images_every_n_epochs": visualize_images_every_n_epochs,
+                "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs,
                 "image_data_format": image_data_format,
                 "use_label_smoothing": args.use_label_smoothing,
                 "label_flipping": args.label_flipping,
