@@ -42,6 +42,7 @@ def train(**kwargs):
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
     model_name = kwargs["model_name"]
+    n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
     generator_type = kwargs["generator_type"]
@@ -168,6 +169,9 @@ def train(**kwargs):
             # Initialize progbar and batch counter
             # progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 0
+            gen_total_loss_epoch = 0
+            gen_L1_loss_epoch = 0
+            gen_log_loss_epoch = 0
             start = time.time()
             for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
                 # Create a batch to feed the discriminator model
@@ -187,7 +191,24 @@ def train(**kwargs):
                 y_gen[:, 1] = 1
                 # Freeze the discriminator
                 discriminator_model.trainable = False
+                # Train generator
+                for _ in range(n_run_of_gen_for_1_run_of_disc-1):
+                    gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                    gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
+                    gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
+                    gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
+                    X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
+                                                               X_sketch_batch,
+                                                               generator_model,
+                                                               batch_counter,
+                                                               patch_size,
+                                                               image_data_format,
+                                                               label_smoothing=label_smoothing,
+                                                               label_flipping=label_flipping)
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
+                gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
+                gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
                 # Unfreeze the discriminator
                 discriminator_model.trainable = True
                 # Progress
@@ -199,10 +220,13 @@ def train(**kwargs):
                 batch_counter += 1
                 if batch_counter >= n_batch_per_epoch:
                     break
+            gen_total_loss = gen_total_loss_epoch/n_batch_per_epoch
+            gen_L1_loss = gen_L1_loss_epoch/n_batch_per_epoch
+            gen_log_loss = gen_log_loss_epoch/n_batch_per_epoch
             disc_losses.append(disc_loss)
-            gen_total_losses.append(gen_loss[0])
-            gen_L1_losses.append(gen_loss[1])
-            gen_log_losses.append(gen_loss[2])
+            gen_total_losses.append(gen_total_loss)
+            gen_L1_losses.append(gen_L1_loss)
+            gen_log_losses.append(gen_log_loss)
             check_this_process_memory()
             print('Epoch %s/%s, Time: %.4f' % (init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
             # Save images for visualization

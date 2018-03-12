@@ -56,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
+    parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
     parser.add_argument('--visualize_images_every_n_epochs', default=1, type=int, help="Epoch at which images and graphs will be visualized")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
@@ -98,6 +99,7 @@ if __name__ == "__main__":
                 "nb_epoch": args.nb_epoch,
                 "model_name": model_name,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
+                "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
                 "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs,
                 "image_data_format": image_data_format,
                 "use_label_smoothing": args.use_label_smoothing,
