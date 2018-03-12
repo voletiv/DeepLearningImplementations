@@ -4,7 +4,6 @@ import time
 
 
 def launch_training(**kwargs):
-
     # Launch training
     train.train(**kwargs)
 
