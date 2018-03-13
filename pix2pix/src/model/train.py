@@ -156,7 +156,11 @@ def train(**kwargs):
                                    patch_size,
                                    image_data_format)
 
-        loss = [l1_loss, 'binary_crossentropy']
+        if use_l1_weighted_loss:
+            loss = [l1_weighted_loss, 'binary_crossentropy']
+        else:
+            loss = [l1_loss, 'binary_crossentropy']
+
         loss_weights = [1E1, 1]
         DCGAN_model.compile(loss=loss, loss_weights=loss_weights, optimizer=opt_dcgan)
 
