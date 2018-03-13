@@ -103,32 +103,30 @@ def gen_batch(X1, X2, batch_size):
 
 
 def get_disc_batch(X_full_batch, X_sketch_batch, generator_model, batch_counter, patch_size,
-                   image_data_format, label_smoothing=False, label_flipping=0):
+                   image_data_format, label_smoothing=False, label_flipping_prob=0):
 
     # Create X_disc: alternatively only generated or real images
     if batch_counter % 2 == 0:
         # Produce an output
         X_disc = generator_model.predict(X_sketch_batch)
-        y_disc = np.zeros((X_disc.shape[0], 2), dtype=np.uint8)
-        y_disc[:, 0] = 1
-
-        if label_flipping > 0:
-            p = np.random.binomial(1, label_flipping)
-            if p > 0:
-                y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
+        y_disc = np.zeros((X_disc.shape[0], 2))
+        if label_smoothing:
+            y_disc[:, 0] = np.random.uniform(low=0.8, high=1, size=y_disc.shape[0])
+            y_disc[:, 1] = np.random.uniform(low=0, high=0.2, size=y_disc.shape[0])
+        else:
+            y_disc[:, 0] = 1
 
     else:
         X_disc = X_full_batch
-        y_disc = np.zeros((X_disc.shape[0], 2), dtype=np.uint8)
+        y_disc = np.zeros((X_disc.shape[0], 2))
         if label_smoothing:
-            y_disc[:, 1] = np.random.uniform(low=0.9, high=1, size=y_disc.shape[0])
+            y_disc[:, 0] = np.random.uniform(low=0, high=0.2, size=y_disc.shape[0])
+            y_disc[:, 1] = np.random.uniform(low=0.8, high=1, size=y_disc.shape[0])
         else:
             y_disc[:, 1] = 1
 
-        if label_flipping > 0:
-            p = np.random.binomial(1, label_flipping)
-            if p > 0:
-                y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
+    if np.random.binomial(1, label_flipping_prob) > 0:
+        y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
 
     # Now extract patches form X_disc
     X_disc = extract_patches(X_disc, image_data_format, patch_size)
