@@ -18,12 +18,14 @@ def parse_my_args(patch_size=[64, 64], backend='tensorflow', generator_type='ups
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
+    parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
     parser.add_argument('--visualize_images_every_n_epochs', default=1, type=int, help="Epoch at which images and graphs will be visualized")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
+    parser.add_argument('--MAX_FRAMES_PER_GIF', default=1000, type=int, help="Max number of frames to be saved in each gif")
     # parser.add_argument('--cfg', action="store", dest="cfg",
     #                     help='cfg model file (/path/to/model_config.yaml)', type=str)
     # parser.add_argument('--wts', action="store", dest="weights",
@@ -63,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
+    parser.add_argument('--MAX_FRAMES_PER_GIF', default=1000, type=int, help="Max number of frames to be saved in each gif")
 
     args = parser.parse_args()
     print(args)
@@ -106,7 +109,8 @@ if __name__ == "__main__":
                 "label_flipping": args.label_flipping,
                 "patch_size": args.patch_size,
                 "use_mbd": args.use_mbd,
-                "prev_model": args.prev_model
+                "prev_model": args.prev_model,
+                "MAX_FRAMES_PER_GIF": args.MAX_FRAMES_PER_GIF
                 }
 
     # Launch training

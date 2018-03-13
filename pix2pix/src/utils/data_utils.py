@@ -1,4 +1,5 @@
 import cv2
+import glob
 import h5py
 import imageio
 import matplotlib.pylab as plt
@@ -135,7 +136,7 @@ def get_disc_batch(X_full_batch, X_sketch_batch, generator_model, batch_counter,
     return X_disc, y_disc
 
 
-def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_data_format, model_name, suffix, iteration_number):
+def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_data_format, model_name, suffix, iteration_number, MAX_FRAMES_PER_GIF=1000):
 
     # Generate images
     X_gen = generator_model.predict(X_sketch)
@@ -192,6 +193,13 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0), 'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (1,1,1), 1, cv2.LINE_AA)
     gif_frames.append(im)
 
+    # If frames exceeds, save as different file
+    if len(gif_frames) > MAX_FRAMES_PER_GIF:
+        gif_frames_00 = gif_frames[:MAX_FRAMES_PER_GIF]
+        num_of_gifs_already_saved = len(glob.glob(os.path.join("../../figures", model_name, model_name + "_%s_*.gif" % suffix)))
+        imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)), gif_frames_00)
+        gif_frames = gif_frames[MAX_FRAMES_PER_GIF:]
+
     # Save gif
     imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
 
@@ -233,4 +241,3 @@ def plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, mo
     plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"))
     plt.clf()
     plt.close()
-

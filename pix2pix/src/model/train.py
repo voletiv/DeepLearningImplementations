@@ -53,6 +53,7 @@ def train(**kwargs):
     dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
     prev_model = kwargs["prev_model"]
+    MAX_FRAMES_PER_GIF = kwargs["MAX_FRAMES_PER_GIF"]
 
     # batch_size = args.batch_size
     # n_batch_per_epoch = args.n_batch_per_epoch
@@ -148,7 +149,7 @@ def train(**kwargs):
             prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
             # Find prev model name, epoch
             model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
-            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[-1][:-3]) + 1
+            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
             # Load prev_model
             generator_model.load_weights(prev_model_latest_gen)
             discriminator_model.load_weights(prev_model_latest_disc)
@@ -232,11 +233,11 @@ def train(**kwargs):
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                model_name, "training", init_epoch + e + 1)
+                                                model_name, "training", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Get new images from validation
                 X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
-                                                model_name, "validation", init_epoch + e + 1)
+                                                model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Plot losses
                 data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch)
             # Save weights
