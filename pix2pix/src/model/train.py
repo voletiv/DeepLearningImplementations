@@ -9,6 +9,8 @@ import time
 
 import models
 
+import tensorflow as tf
+
 import keras.backend as K
 from keras.utils import generic_utils
 from keras.optimizers import Adam, SGD
@@ -17,6 +19,18 @@ from keras.optimizers import Adam, SGD
 sys.path.append("../utils")
 import general_utils
 import data_utils
+
+w = 256
+a = np.exp(-np.linspace(-w//2+1, w//2, w)**2/(50/(w/150))**2)
+b = np.exp(-np.linspace(-w//2+1, w//2, w)**2/(50/(w/200))**2)
+gaussian_overlap = a[:, np.newaxis] * b[np.newaxis, :]
+gaussian_overlap = np.vstack((np.zeros((30, w)), gaussian_overlap[:-30]))
+gaussian_overlap = tf.convert_to_tensor(gaussian_overlap, dtype=tf.float32)
+
+
+def l1_weighted_loss(y_true, y_pred):
+    reconstruction_loss = K.sum(K.abs(y_pred - y_true), axis=-1)
+    return reconstruction_loss + tf.multiply(reconstruction_loss, gaussian_overlap)
 
 
 def l1_loss(y_true, y_pred):
@@ -38,21 +52,23 @@ def train(**kwargs):
     """
 
     # Roll out the parameters
+    patch_size = kwargs["patch_size"]
+    image_data_format = kwargs["image_data_format"]
+    generator_type = kwargs["generator_type"]
+    dset = kwargs["dset"]
     batch_size = kwargs["batch_size"]
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
     model_name = kwargs["model_name"]
-    n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
-    generator_type = kwargs["generator_type"]
-    image_data_format = kwargs["image_data_format"]
-    patch_size = kwargs["patch_size"]
-    label_smoothing = kwargs["use_label_smoothing"]
-    label_flipping = kwargs["label_flipping"]
-    dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
+    label_smoothing = kwargs["use_label_smoothing"]
+    label_flipping_prob = kwargs["label_flipping_prob"]
+    use_l1_weighted_loss = kwargs["use_l1_weighted_loss"]
     prev_model = kwargs["prev_model"]
+    discriminator_optimizer = kwargs["discriminator_optimizer"]
+    n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     MAX_FRAMES_PER_GIF = kwargs["MAX_FRAMES_PER_GIF"]
 
     # batch_size = args.batch_size
@@ -62,7 +78,7 @@ def train(**kwargs):
     # generator_type = args.generator_type
     # patch_size = args.patch_size
     # label_smoothing = False
-    # label_flipping = False
+    # label_flipping_prob = False
     # dset = args.dset
     # use_mbd = False
 
@@ -84,8 +100,18 @@ def train(**kwargs):
 
     epoch_size = n_batch_per_epoch * batch_size
 
+    init_epoch = 0
+
+    if prev_model:
+        print('\n\nLoading prev_model from', prev_model, '...\n\n')
+        prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
+        prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*.h5')))[-1]
+        prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
+        # Find prev model name, epoch
+        model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
+        init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
+
     # Setup environment (logging directory etc), if no prev_model is mentioned
-    # if not prev_model:
     general_utils.setup_logging(model_name)
 
     # img_dim = X_full_train.shape[-3:]
@@ -96,12 +122,13 @@ def train(**kwargs):
 
     try:
 
-        init_epoch = 0
-
         # Create optimizers
         opt_dcgan = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-        # opt_discriminator = SGD(lr=1E-3, momentum=0.9, nesterov=True)
-        opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+
+        if discriminator_optimizer == 'sgd':
+            opt_discriminator = SGD(lr=1E-3, momentum=0.9, nesterov=True)
+        elif discriminator_optimizer == 'adam':
+            opt_discriminator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
         # Load generator model
         generator_model = models.load("generator_unet_%s" % generator_type,
@@ -136,21 +163,8 @@ def train(**kwargs):
         discriminator_model.trainable = True
         discriminator_model.compile(loss='binary_crossentropy', optimizer=opt_discriminator)
 
-        disc_losses = []
-        gen_total_losses = []
-        gen_L1_losses = []
-        gen_log_losses = []
-
         # Load prev_model
         if prev_model:
-            print('\n\nLoading prev_model from', prev_model, '...\n\n')
-            prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
-            prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*.h5')))[-1]
-            prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
-            # Find prev model name, epoch
-            model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
-            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
-            # Load prev_model
             generator_model.load_weights(prev_model_latest_gen)
             discriminator_model.load_weights(prev_model_latest_disc)
             DCGAN_model.load_weights(prev_model_latest_DCGAN)
@@ -163,6 +177,12 @@ def train(**kwargs):
         print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
         print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
         print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+
+        # Losses
+        disc_losses = []
+        gen_total_losses = []
+        gen_L1_losses = []
+        gen_log_losses = []
 
         # Start training
         print("\n\nStarting training\n\n")
@@ -183,7 +203,7 @@ def train(**kwargs):
                                                            patch_size,
                                                            image_data_format,
                                                            label_smoothing=label_smoothing,
-                                                           label_flipping=label_flipping)
+                                                           label_flipping_prob=label_flipping_prob)
                 # Update the discriminator
                 disc_loss = discriminator_model.train_on_batch(X_disc, y_disc)
                 # Create a batch to feed the generator model
@@ -198,15 +218,9 @@ def train(**kwargs):
                     gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
                     gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                     gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
-                    X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
-                                                               X_sketch_batch,
-                                                               generator_model,
-                                                               batch_counter,
-                                                               patch_size,
-                                                               image_data_format,
-                                                               label_smoothing=label_smoothing,
-                                                               label_flipping=label_flipping)
+                    X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                # Add losses
                 gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
                 gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                 gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
