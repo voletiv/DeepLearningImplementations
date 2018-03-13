@@ -23,19 +23,11 @@ def parse_my_args(patch_size=[64, 64], backend='tensorflow', generator_type='ups
     parser.add_argument('--visualize_images_every_n_epochs', default=1, type=int, help="Epoch at which images and graphs will be visualized")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
-    parser.add_argument('--label_flipping', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
+    parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
+    parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (def: False)")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
+    parser.add_argument('--discriminator_optimizer', default='sgd', type=str, help="discriminator_optimizer: sgd or (default) adam")
     parser.add_argument('--MAX_FRAMES_PER_GIF', default=1000, type=int, help="Max number of frames to be saved in each gif")
-    # parser.add_argument('--cfg', action="store", dest="cfg",
-    #                     help='cfg model file (/path/to/model_config.yaml)', type=str)
-    # parser.add_argument('--wts', action="store", dest="weights",
-    #                     help='weights model file (/path/to/model_weights.pkl)', type=str)
-    # parser.add_argument('--output-dir', action="store", dest="output_dir",
-    #                     help='directory for visualization pdfs (default: /tmp/infer_simple)', type=str)
-    # parser.add_argument('--image-ext', action="store", dest="image_ext",
-    #                     help='image file name extension (default: jpg)', type=str)
-    # parser.add_argument('im_or_folder', help='image or folder of images', default=None)
-    # output_dir = "/home/play/data/detectron/voletiv/driveai/" + ".".join(yaml_file.split('/')[-1].split('.')[:-1])
     return parser.parse_args([str(patch_size[0]), str(patch_size[1]),
                               '--backend', backend,
                               '--generator_type', generator_type,
@@ -58,13 +50,15 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
-    parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
     parser.add_argument('--visualize_images_every_n_epochs', default=1, type=int, help="Epoch at which images and graphs will be visualized")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
-    parser.add_argument('--label_flipping', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
+    parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
+    parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (def: False)")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
+    parser.add_argument('--discriminator_optimizer', default='sgd', type=str, help="discriminator_optimizer: sgd or (default) adam")
+    parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--MAX_FRAMES_PER_GIF', default=1000, type=int, help="Max number of frames to be saved in each gif")
 
     args = parser.parse_args()
@@ -95,21 +89,23 @@ if __name__ == "__main__":
     print("\n\nMODEL NAME: ", model_name, '\n\n')
 
     # Set default params
-    d_params = {"dset": args.dset,
+    d_params = {"patch_size": args.patch_size,
+                "image_data_format": image_data_format,
                 "generator_type": args.generator_type,
+                "dset": args.dset,
                 "batch_size": args.batch_size,
                 "n_batch_per_epoch": args.n_batch_per_epoch,
                 "nb_epoch": args.nb_epoch,
                 "model_name": model_name,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
-                "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
                 "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs,
-                "image_data_format": image_data_format,
-                "use_label_smoothing": args.use_label_smoothing,
-                "label_flipping": args.label_flipping,
-                "patch_size": args.patch_size,
                 "use_mbd": args.use_mbd,
+                "use_label_smoothing": args.use_label_smoothing,
+                "label_flipping_prob": args.label_flipping_prob,
+                "use_l1_weighted_loss": args.use_l1_weighted_loss,
                 "prev_model": args.prev_model,
+                "discriminator_optimizer": args.discriminator_optimizer,
+                "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
                 "MAX_FRAMES_PER_GIF": args.MAX_FRAMES_PER_GIF
                 }
 
