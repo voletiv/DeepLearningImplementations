@@ -43,6 +43,21 @@ def check_this_process_memory():
     print('memory use: %.4f' % memoryUse, 'GB')
 
 
+def purge_weights(n, model_name):
+    # disc
+    disc_weight_files = glob.glob('../../models/%s/disc_weights*' % model_name)
+    for disc_weight_file in disc_weight_files[:-n]:
+        os.remove(os.path.realpath(disc_weight_file))
+    # gen
+    gen_weight_files = glob.glob('../../models/%s/gen_weights*' % model_name)
+    for gen_weight_file in gen_weight_files[:-n]:
+        os.remove(os.path.realpath(gen_weight_file))
+    # DCGAN
+    DCGAN_weight_files = glob.glob('../../models/%s/DCGAN_weights*' % model_name)
+    for DCGAN_weight_file in DCGAN_weight_files[:-n]:
+        os.remove(os.path.realpath(DCGAN_weight_file))
+
+
 def train(**kwargs):
     """
     Train model
@@ -64,6 +79,7 @@ def train(**kwargs):
     model_name = kwargs["model_name"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
+    save_only_last_n_weights = kwargs["save_only_last_n_weights"]
     use_mbd = kwargs["use_mbd"]
     label_smoothing = kwargs["use_label_smoothing"]
     label_flipping_prob = kwargs["label_flipping_prob"]
@@ -283,12 +299,18 @@ def train(**kwargs):
             
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
+                # Delete all but the last n weights
+                purge_weights(save_only_last_n_weights, model_name)
+                # Save gen weights
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 generator_model.save_weights(gen_weights_path, overwrite=True)
+                # Save disc weights
                 disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 discriminator_model.save_weights(disc_weights_path, overwrite=True)
+                # Save DCGAN weights
                 DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
 
     except KeyboardInterrupt:
         pass
+

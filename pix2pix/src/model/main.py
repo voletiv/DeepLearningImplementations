@@ -50,9 +50,10 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
-    parser.add_argument('--dont_augment_data', action="store_false", help="Use data augmentation while training")
+    parser.add_argument('--dont_augment_data', action="store_true", help="Use data augmentation while training")
     parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
     parser.add_argument('--visualize_images_every_n_epochs', default=10, type=int, help="Epoch at which images and graphs will be visualized")
+    parser.add_argument('--save_only_last_n_weights', default=10, type=int, help="Save only the last n .h5 files (of, gen, disc and DCGAN each)")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
@@ -101,6 +102,7 @@ if __name__ == "__main__":
                 "model_name": model_name,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
                 "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs,
+                "save_only_last_n_weights": args.save_last_n_weights,
                 "use_mbd": args.use_mbd,
                 "use_label_smoothing": args.use_label_smoothing,
                 "label_flipping_prob": args.label_flipping_prob,
@@ -113,3 +115,6 @@ if __name__ == "__main__":
 
     # Launch training
     launch_training(**d_params)
+    
+    # print(d_params)
+    

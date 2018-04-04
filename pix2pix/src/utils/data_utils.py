@@ -96,7 +96,7 @@ def load_data(dset, image_data_format):
     return X_full_train, X_sketch_train, X_full_val, X_sketch_val
 
 
-def data_generator(X_out, X_in, batch_size, augment_data=True)
+def data_generator(X_out, X_in, batch_size, augment_data=True):
     
     # data_gen args
     if augment_data:
