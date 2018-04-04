@@ -34,11 +34,12 @@ def create_dir(dirs):
             os.makedirs(dirs)
 
 
-def setup_logging(model_name):
+def setup_logging(**kwargs):
+    
+    model_name = kwargs["model_name"]
 
     # Output path where we store experiment log and weights
     model_dir = os.path.join("../../models", model_name)
-
     fig_dir = os.path.join("../../figures", model_name)
 
     # Create if it does not exist
@@ -50,3 +51,7 @@ def setup_logging(model_name):
     subprocess.call(['cp', 'models.py', model_dir])
     subprocess.call(['cp', 'train.py', model_dir])
 
+    # Write all config params
+    with open(os.path.join(model_dir, 'config.txt'), 'w') as f:
+        for i in kwargs:
+            f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
