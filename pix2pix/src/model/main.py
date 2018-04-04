@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 "model_name": model_name,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
                 "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs,
-                "save_only_last_n_weights": args.save_last_n_weights,
+                "save_only_last_n_weights": args.save_only_last_n_weights,
                 "use_mbd": args.use_mbd,
                 "use_label_smoothing": args.use_label_smoothing,
                 "label_flipping_prob": args.label_flipping_prob,
