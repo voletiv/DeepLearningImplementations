@@ -1,3 +1,4 @@
+import datetime
 import glob
 import imageio
 import numpy as np
@@ -59,6 +60,7 @@ def train(**kwargs):
     batch_size = kwargs["batch_size"]
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
+    augment_data = kwargs["augment_data"]
     model_name = kwargs["model_name"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
@@ -82,6 +84,9 @@ def train(**kwargs):
     # dset = args.dset
     # use_mbd = False
 
+    # Setup environment (logging directory etc)
+    general_utils.setup_logging(**kwargs)
+    
     # Check and make the dataset
     # If .h5 file of dset is not present, try making it
     if not os.path.exists("../../data/processed/%s_data.h5" % dset):
@@ -110,9 +115,6 @@ def train(**kwargs):
         # Find prev model name, epoch
         model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
         init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
-
-    # Setup environment (logging directory etc), if no prev_model is mentioned
-    general_utils.setup_logging(model_name)
 
     # img_dim = X_full_train.shape[-3:]
     img_dim = (256, 256, 3)
@@ -191,6 +193,7 @@ def train(**kwargs):
         # Start training
         print("\n\nStarting training\n\n")
         for e in range(nb_epoch):
+            
             # Initialize progbar and batch counter
             # progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 0
@@ -198,7 +201,9 @@ def train(**kwargs):
             gen_L1_loss_epoch = 0
             gen_log_loss_epoch = 0
             start = time.time()
+            
             for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
+                
                 # Create a batch to feed the discriminator model
                 X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
                                                            X_sketch_batch,
@@ -208,14 +213,18 @@ def train(**kwargs):
                                                            image_data_format,
                                                            label_smoothing=label_smoothing,
                                                            label_flipping_prob=label_flipping_prob)
+                
                 # Update the discriminator
                 disc_loss = discriminator_model.train_on_batch(X_disc, y_disc)
+                
                 # Create a batch to feed the generator model
-                X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
+                X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size, augment_data=augment_data))
                 y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
                 y_gen[:, 1] = 1
+                
                 # Freeze the discriminator
                 discriminator_model.trainable = False
+                
                 # Train generator
                 for _ in range(n_run_of_gen_for_1_run_of_disc-1):
                     gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
@@ -223,22 +232,28 @@ def train(**kwargs):
                     gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                     gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
                     X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
+                
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                
                 # Add losses
                 gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
                 gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                 gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
+                
                 # Unfreeze the discriminator
                 discriminator_model.trainable = True
+                
                 # Progress
                 # progbar.add(batch_size, values=[("D logloss", disc_loss),
                 #                                 ("G tot", gen_loss[0]),
                 #                                 ("G L1", gen_loss[1]),
                 #                                 ("G logloss", gen_loss[2])])
                 print("Epoch", str(init_epoch+e+1), "batch", str(batch_counter+1), "D_logloss", disc_loss, "G_tot", gen_loss[0], "G_L1", gen_loss[1], "G_log", gen_loss[2])
+                
                 batch_counter += 1
                 if batch_counter >= n_batch_per_epoch:
                     break
+            
             gen_total_loss = gen_total_loss_epoch/n_batch_per_epoch
             gen_L1_loss = gen_L1_loss_epoch/n_batch_per_epoch
             gen_log_loss = gen_log_loss_epoch/n_batch_per_epoch
@@ -246,8 +261,10 @@ def train(**kwargs):
             gen_total_losses.append(gen_total_loss)
             gen_L1_losses.append(gen_L1_loss)
             gen_log_losses.append(gen_log_loss)
+            
             check_this_process_memory()
-            print('Epoch %s/%s, Time: %.4f' % (init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
+            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d} end, Time taken: {3:.4f}'.format(datetime.datetime.now(), init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
+            
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
@@ -258,6 +275,7 @@ def train(**kwargs):
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Plot losses
                 data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch)
+            
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
