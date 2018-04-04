@@ -8,6 +8,7 @@ import os
 
 from keras.datasets import mnist
 from keras.utils import np_utils
+from keras.preprocessing.image import ImageDataGenerator
 
 
 def normalization(X):
@@ -93,6 +94,29 @@ def load_data(dset, image_data_format):
         X_sketch_val = X_sketch_val.transpose(0, 2, 3, 1)
 
     return X_full_train, X_sketch_train, X_full_val, X_sketch_val
+
+
+def data_generator(X_out, X_in, batch_size, augment_data=True)
+    
+    # data_gen args
+    if augment_data:
+        data_gen_args = dict(rotation_range=10.,
+                             width_shift_range=0.1,
+                             height_shift_range=0.1,
+                             zoom_range=0.2,
+                             horizontal_flip=True)
+    else:
+        data_gen_args = {}
+    
+    # datagens
+    output_image_datagen = ImageDataGenerator(**data_gen_args)
+    input_image_datagen = ImageDataGenerator(**data_gen_args)
+    
+    # Image generators
+    output_image_generator = output_image_datagen.flow(X_out, batch_size=batch_size, seed=29)
+    input_image_generator = input_image_datagen.flow(X_in, batch_size=batch_size, seed=29)
+    
+    return output_image_generator, input_image_generator
 
 
 def gen_batch(X1, X2, batch_size):
