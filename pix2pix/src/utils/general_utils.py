@@ -55,3 +55,8 @@ def setup_logging(**kwargs):
     with open(os.path.join(model_dir, 'config.txt'), 'w') as f:
         for i in kwargs:
             f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
+
+    with open(os.path.join(fig_dir, 'config.txt'), 'w') as f:
+        for i in kwargs:
+            f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
+
