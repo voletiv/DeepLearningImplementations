@@ -112,6 +112,12 @@ def data_generator(X_out, X_in, batch_size, augment_data=True):
     output_image_datagen = ImageDataGenerator(**data_gen_args)
     input_image_datagen = ImageDataGenerator(**data_gen_args)
     
+    # Extend X_out and X_in if their lengths are not a multiple of batch_size
+    number_of_elements_to_append = (batch_size - (len(X_out) - (len(X_out)//batch_size * batch_size))) % batch_size
+    choices = np.random.choice(len(X_out), number_of_elements_to_append)
+    X_out = np.vstack((X_out, X_out[choices]))
+    X_in = np.vstack((X_in, X_in[choices]))
+    
     # Image generators
     output_image_generator = output_image_datagen.flow(X_out, batch_size=batch_size, seed=29)
     input_image_generator = input_image_datagen.flow(X_in, batch_size=batch_size, seed=29)
