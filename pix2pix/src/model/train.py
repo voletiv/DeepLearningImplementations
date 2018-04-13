@@ -87,6 +87,7 @@ def train(**kwargs):
     prev_model = kwargs["prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
     n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
+    load_all_data_at_once = kwargs["load_all_data_at_once"]
     MAX_FRAMES_PER_GIF = kwargs["MAX_FRAMES_PER_GIF"]
 
     # batch_size = args.batch_size
@@ -100,24 +101,32 @@ def train(**kwargs):
     # dset = args.dset
     # use_mbd = False
 
-    # Setup environment (logging directory etc)
-    general_utils.setup_logging(**kwargs)
-    
     # Check and make the dataset
     # If .h5 file of dset is not present, try making it
-    if not os.path.exists("../../data/processed/%s_data.h5" % dset):
-        print("dset %s_data.h5 not present in '../../data/processed'!" % dset)
-        if not os.path.exists("../../data/%s/" % dset):
-            print("dset folder %s not present in '../../data'!\n\nERROR: Dataset .h5 file not made, and dataset not available in '../../data/'.\n\nQuitting." % dset)
-            return
-        else:
-            if not os.path.exists("../../data/%s/train" % dset) or not os.path.exists("../../data/%s/val" % dset) or not os.path.exists("../../data/%s/test" % dset):
-                print("'train', 'val' or 'test' folders not present in dset folder '../../data/%s'!\n\nERROR: Dataset must contain 'train', 'val' and 'test' folders.\n\nQuitting." % dset)
+    if load_all_data_at_once:
+        if not os.path.exists("../../data/processed/%s_data.h5" % dset):
+            print("dset %s_data.h5 not present in '../../data/processed'!" % dset)
+            if not os.path.exists("../../data/%s/" % dset):
+                print("dset folder %s not present in '../../data'!\n\nERROR: Dataset .h5 file not made, and dataset not available in '../../data/'.\n\nQuitting." % dset)
                 return
             else:
-                print("Making %s dataset" % dset)
-                subprocess.call(['python3', '../data/make_dataset.py', '../../data/%s' % dset, '3'])
-                print("Done!")
+                if not os.path.exists("../../data/%s/train" % dset) or not os.path.exists("../../data/%s/val" % dset) or not os.path.exists("../../data/%s/test" % dset):
+                    print("'train', 'val' or 'test' folders not present in dset folder '../../data/%s'!\n\nERROR: Dataset must contain 'train', 'val' and 'test' folders.\n\nQuitting." % dset)
+                    return
+                else:
+                    print("Making %s dataset" % dset)
+                    subprocess.call(['python3', '../data/make_dataset.py', '../../data/%s' % dset, '3'])
+                    print("Done!")
+    else:
+        if not os.path.exists(dset):
+            print("dset does not exist! Given:", dset)
+            return
+        if not os.path.exists(os.path.join(dset, 'train')):
+            print("dset does not contain a 'train' dir! Given dset:", dset)
+            return
+        if not os.path.exists(os.path.join(dset, 'val')):
+            print("dset does not contain a 'val' dir! Given dset:", dset)
+            return
 
     epoch_size = n_batch_per_epoch * batch_size
 
@@ -191,14 +200,27 @@ def train(**kwargs):
             discriminator_model.load_weights(prev_model_latest_disc)
             DCGAN_model.load_weights(prev_model_latest_DCGAN)
 
-        # Load and rescale data
-        print('\n\nLoading data...\n\n')
-        X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
-        check_this_process_memory()
-        print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
-        print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
-        print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
-        print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+        # Load .h5 data all at once
+        if load_all_data_at_once:
+            print('\n\nLoading data...\n\n')
+            X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
+            check_this_process_memory()
+            print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
+            print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
+            print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
+            print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+            
+            # To generate training data
+            X_full_batch_gen_train, X_sketch_batch_gen_train = data_utils.data_generator(X_full_train, X_sketch_train, batch_size, augment_data=augment_data)
+            X_full_batch_gen_val, X_sketch_batch_gen_val = data_utils.data_generator(X_full_val, X_sketch_val, batch_size, augment_data=False)
+
+        # Load data from images through an ImageDataGenerator        
+        else:
+            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), batch_size, augment_data=augment_data)
+            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), batch_size, augment_data=augment_data)
+
+        # Setup environment (logging directory etc)
+        general_utils.setup_logging(**kwargs)
 
         # Losses
         disc_losses = []
@@ -208,11 +230,7 @@ def train(**kwargs):
 
         # Start training
         print("\n\nStarting training\n\n")
-        
-        # To generate training data
-        X_full_train_batch_gen, X_sketch_train_batch_gen = data_utils.data_generator(X_full_train, X_sketch_train, batch_size, augment_data=augment_data)
-        X_full_val_batch_gen, X_sketch_val_batch_gen = data_utils.data_generator(X_full_val, X_sketch_val, batch_size, augment_data=False)
-
+    
         # For each epoch
         for e in range(nb_epoch):
             
@@ -229,9 +247,15 @@ def train(**kwargs):
             for batch in range(n_batch_per_epoch):
                 
                 # Create a batch to feed the discriminator model
-                X_full_batch, X_sketch_batch = next(X_full_train_batch_gen), next(X_sketch_train_batch_gen)
-                X_disc, y_disc = data_utils.get_disc_batch(X_full_batch,
-                                                           X_sketch_batch,
+                if load_all_data_at_once: 
+                    X_full_batch_train, X_sketch_batch_train = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                else:
+                    X_batch_train = next(X_batch_gen_train)
+                    X_full_batch_train = X_batch_train[:, :, :img_dim.shape[1]//2]
+                    X_sketch_batch_train = X_batch_train[:, :, img_dim.shape[1]//2:]
+
+                X_disc, y_disc = data_utils.get_disc_batch(X_full_batch_train,
+                                                           X_sketch_batch_train,
                                                            generator_model,
                                                            batch_counter,
                                                            patch_size,
@@ -243,7 +267,13 @@ def train(**kwargs):
                 disc_loss = discriminator_model.train_on_batch(X_disc, y_disc)
                 
                 # Create a batch to feed the generator model
-                X_gen_target, X_gen = next(X_full_train_batch_gen), next(X_sketch_train_batch_gen)
+                if load_all_data_at_once:
+                    X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                else:
+                    X_batch = next(X_batch_gen_train)
+                    X_gen_target = X_batch[:, :, :img_dim.shape[1]//2]
+                    X_gen = X_batch[:, :, img_dim.shape[1]//2:]
+
                 y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
                 y_gen[:, 1] = 1
                 
@@ -256,8 +286,13 @@ def train(**kwargs):
                     gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
                     gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                     gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
-                    X_gen_target, X_gen = next(X_full_train_batch_gen), next(X_sketch_train_batch_gen)
-                
+                    if load_all_data_at_once:
+                        X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                    else:
+                        X_batch = next(X_batch_gen_train)
+                        X_gen_target = X_batch[:, :, :img_dim.shape[1]//2]
+                        X_gen = X_batch[:, :, img_dim.shape[1]//2:]
+
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
                 
                 # Add losses
@@ -290,9 +325,15 @@ def train(**kwargs):
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
                                                 model_name, "training", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
-                # Get new images from validation
-                X_full_val_batch, X_sketch_val_batch = next(X_full_val_batch_gen), next(X_sketch_val_batch_gen)
-                data_utils.plot_generated_batch(X_full_val_batch, X_sketch_val_batch, generator_model, batch_size, image_data_format,
+                # Get new images for validation
+                if load_all_data_at_once:
+                    X_full_batch_val, X_sketch_batch_val = next(X_full_batch_gen_val), next(X_sketch_batch_gen_val)
+                else:
+                    X_batch_val = next(X_batch_gen_val)
+                    X_full_batch_val = X_batch_val[:, :, :img_dim.shape[1]//2]
+                    X_sketch_batch_val = X_batch_val[:, :, img_dim.shape[1]//2:]
+                # Predict and validate
+                data_utils.plot_generated_batch(X_full_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Plot losses
                 data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch)

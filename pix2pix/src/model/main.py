@@ -46,7 +46,7 @@ if __name__ == "__main__":
     parser.add_argument('patch_size', type=int, nargs=2, action="store", help="Patch size for D")
     parser.add_argument('--backend', type=str, default="tensorflow", help="theano or tensorflow")
     parser.add_argument('--generator_type', type=str, default="upsampling", help="upsampling or deconv")
-    parser.add_argument('--dset', type=str, default="facades", help="facades")
+    parser.add_argument('--dset', type=str, default="facades", help="dir with 'train' and 'val' dirs with faces_combined images, OR .h5 data file name in the data/processed dir")
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
@@ -61,12 +61,15 @@ if __name__ == "__main__":
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
     parser.add_argument('--discriminator_optimizer', default='sgd', type=str, help="discriminator_optimizer: sgd or (default) adam")
     parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
+    parser.add_argument('--load_all_data_at_once', action="store_true", help="To load full data all at once from a .h5 file")
     parser.add_argument('--MAX_FRAMES_PER_GIF', default=100, type=int, help="Max number of frames to be saved in each gif")
 
     args = parser.parse_args()
     print(args)
 
     # args = parse_my_args()
+    # EXAMPLE:
+    # python3 main.py 64 64 --dset andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss
 
     # Set the backend by modifying the env variable
     if args.backend == "theano":
@@ -110,6 +113,7 @@ if __name__ == "__main__":
                 "prev_model": args.prev_model,
                 "discriminator_optimizer": args.discriminator_optimizer,
                 "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
+                "load_all_data_at_once" : args.load_all_data_at_once,
                 "MAX_FRAMES_PER_GIF": args.MAX_FRAMES_PER_GIF
                 }
 

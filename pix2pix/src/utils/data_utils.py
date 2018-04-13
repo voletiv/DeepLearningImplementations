@@ -6,8 +6,6 @@ import matplotlib.pylab as plt
 import numpy as np
 import os
 
-from keras.datasets import mnist
-from keras.utils import np_utils
 from keras.preprocessing.image import ImageDataGenerator
 
 
@@ -123,6 +121,30 @@ def data_generator(X_out, X_in, batch_size, augment_data=True):
     input_image_generator = input_image_datagen.flow(X_in, batch_size=batch_size, seed=29)
     
     return output_image_generator, input_image_generator
+
+
+def data_generator_from_dir(data_dir, batch_size, augment_data=True)
+
+    # data_gen args
+    if augment_data:
+        data_generator_args = dict(rotation_range=10.,
+                                   width_shift_range=0.1,
+                                   height_shift_range=0.1,
+                                   zoom_range=0.2,
+                                   horizontal_flip=True)
+    else:
+        data_generator_args = {}
+
+    # datagens
+    image_data_generator = ImageDataGenerator(**data_generator_args)
+
+    # Image generators
+    image_data_generator.flow_from_directory(data_dir, batch_size=batch_size, class_mode=None, seed=29) 
+
+    if len(image_data_generator) == 0:
+        raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)
+
+    return image_data_generator
 
 
 def gen_batch(X1, X2, batch_size):
