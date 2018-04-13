@@ -52,10 +52,12 @@ def setup_logging(**kwargs):
     subprocess.call(['cp', 'train.py', model_dir])
 
     # Write all config params
+    print("Writing config params in", os.path.join(model_dir, 'config.txt'))
     with open(os.path.join(model_dir, 'config.txt'), 'w') as f:
         for i in kwargs:
             f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
 
+    print("Writing config params in", os.path.join(fig_dir, 'config.txt'))
     with open(os.path.join(fig_dir, 'config.txt'), 'w') as f:
         for i in kwargs:
             f.write(str(i) + ' ' + str(kwargs[i]) + '\n')

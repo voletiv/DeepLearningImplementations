@@ -90,7 +90,13 @@ if __name__ == "__main__":
 
     import train
 
-    model_name = "{:%Y%m%d_%H%M%S}".format(datetime.datetime.now()) + '_' + args.dset
+    model_name_prefix = "{:%Y%m%d_%H%M%S}".format(datetime.datetime.now())
+
+    if args.load_all_data_at_once:
+        model_name = model_name_prefix + '_' + args.dset
+    else:
+        model_name = model_name_prefix + '_' + os.path.basename(args.dset)
+
     print("\n\nMODEL NAME: ", model_name, '\n\n')
 
     # Set default params

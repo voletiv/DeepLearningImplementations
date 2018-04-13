@@ -123,9 +123,11 @@ def data_generator(X_out, X_in, batch_size, augment_data=True):
     return output_image_generator, input_image_generator
 
 
-def data_generator_from_dir(data_dir, batch_size, augment_data=True)
+def data_generator_from_dir(data_dir, target_size, batch_size, augment_data=True):
 
     # data_gen args
+    print("Loading data from", data_dir)
+
     if augment_data:
         data_generator_args = dict(rotation_range=10.,
                                    width_shift_range=0.1,
@@ -136,10 +138,10 @@ def data_generator_from_dir(data_dir, batch_size, augment_data=True)
         data_generator_args = {}
 
     # datagens
-    image_data_generator = ImageDataGenerator(**data_generator_args)
+    image_datagen = ImageDataGenerator(**data_generator_args)
 
     # Image generators
-    image_data_generator.flow_from_directory(data_dir, batch_size=batch_size, class_mode=None, seed=29) 
+    image_data_generator = image_datagen.flow_from_directory(data_dir, target_size=target_size, batch_size=batch_size, class_mode=None, seed=29)
 
     if len(image_data_generator) == 0:
         raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)

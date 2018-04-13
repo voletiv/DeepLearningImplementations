@@ -201,23 +201,27 @@ def train(**kwargs):
             DCGAN_model.load_weights(prev_model_latest_DCGAN)
 
         # Load .h5 data all at once
+        print('\n\nLoading data...\n\n')
+        check_this_process_memory()
+
         if load_all_data_at_once:
-            print('\n\nLoading data...\n\n')
             X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
             check_this_process_memory()
             print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
             print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
             print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
             print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
-            
+
             # To generate training data
             X_full_batch_gen_train, X_sketch_batch_gen_train = data_utils.data_generator(X_full_train, X_sketch_train, batch_size, augment_data=augment_data)
             X_full_batch_gen_val, X_sketch_batch_gen_val = data_utils.data_generator(X_full_val, X_sketch_val, batch_size, augment_data=False)
 
-        # Load data from images through an ImageDataGenerator        
+        # Load data from images through an ImageDataGenerator
         else:
-            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), batch_size, augment_data=augment_data)
-            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), batch_size, augment_data=augment_data)
+            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size, augment_data=augment_data)
+            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size, augment_data=False)
+
+        check_this_process_memory()
 
         # Setup environment (logging directory etc)
         general_utils.setup_logging(**kwargs)
@@ -230,7 +234,7 @@ def train(**kwargs):
 
         # Start training
         print("\n\nStarting training\n\n")
-    
+
         # For each epoch
         for e in range(nb_epoch):
             
@@ -247,12 +251,12 @@ def train(**kwargs):
             for batch in range(n_batch_per_epoch):
                 
                 # Create a batch to feed the discriminator model
-                if load_all_data_at_once: 
+                if load_all_data_at_once:
                     X_full_batch_train, X_sketch_batch_train = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
                     X_batch_train = next(X_batch_gen_train)
-                    X_full_batch_train = X_batch_train[:, :, :img_dim.shape[1]//2]
-                    X_sketch_batch_train = X_batch_train[:, :, img_dim.shape[1]//2:]
+                    X_full_batch_train = X_batch_train[:, :, :img_dim[1]]
+                    X_sketch_batch_train = X_batch_train[:, :, img_dim[1]:]
 
                 X_disc, y_disc = data_utils.get_disc_batch(X_full_batch_train,
                                                            X_sketch_batch_train,
@@ -271,8 +275,8 @@ def train(**kwargs):
                     X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
                     X_batch = next(X_batch_gen_train)
-                    X_gen_target = X_batch[:, :, :img_dim.shape[1]//2]
-                    X_gen = X_batch[:, :, img_dim.shape[1]//2:]
+                    X_gen_target = X_batch[:, :, :img_dim[1]]
+                    X_gen = X_batch[:, :, img_dim[1]:]
 
                 y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
                 y_gen[:, 1] = 1
@@ -290,8 +294,8 @@ def train(**kwargs):
                         X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
                     else:
                         X_batch = next(X_batch_gen_train)
-                        X_gen_target = X_batch[:, :, :img_dim.shape[1]//2]
-                        X_gen = X_batch[:, :, img_dim.shape[1]//2:]
+                        X_gen_target = X_batch[:, :, :img_dim[1]]
+                        X_gen = X_batch[:, :, img_dim[1]:]
 
                 gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
                 
@@ -330,8 +334,8 @@ def train(**kwargs):
                     X_full_batch_val, X_sketch_batch_val = next(X_full_batch_gen_val), next(X_sketch_batch_gen_val)
                 else:
                     X_batch_val = next(X_batch_gen_val)
-                    X_full_batch_val = X_batch_val[:, :, :img_dim.shape[1]//2]
-                    X_sketch_batch_val = X_batch_val[:, :, img_dim.shape[1]//2:]
+                    X_full_batch_val = X_batch_val[:, :, :img_dim[1]]
+                    X_sketch_batch_val = X_batch_val[:, :, img_dim[1]:]
                 # Predict and validate
                 data_utils.plot_generated_batch(X_full_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
