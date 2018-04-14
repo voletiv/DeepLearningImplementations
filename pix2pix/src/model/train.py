@@ -141,7 +141,7 @@ def train(**kwargs):
         model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
         init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
 
-    # img_dim = X_full_train.shape[-3:]
+    # img_dim = X_target_train.shape[-3:]
     img_dim = (256, 256, 3)
 
     # Get the number of non overlapping patch and the size of input image to the discriminator
@@ -205,21 +205,21 @@ def train(**kwargs):
         check_this_process_memory()
 
         if load_all_data_at_once:
-            X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
+            X_target_train, X_sketch_train, X_target_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
             check_this_process_memory()
-            print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
+            print('X_target_train: %.4f' % (X_target_train.nbytes/2**30), "GB")
             print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
-            print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
+            print('X_target_val: %.4f' % (X_target_val.nbytes/2**30), "GB")
             print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
 
             # To generate training data
-            X_full_batch_gen_train, X_sketch_batch_gen_train = data_utils.data_generator(X_full_train, X_sketch_train, batch_size, augment_data=augment_data)
-            X_full_batch_gen_val, X_sketch_batch_gen_val = data_utils.data_generator(X_full_val, X_sketch_val, batch_size, augment_data=False)
+            X_target_batch_gen_train, X_sketch_batch_gen_train = data_utils.data_generator(X_target_train, X_sketch_train, batch_size, augment_data=augment_data)
+            X_target_batch_gen_val, X_sketch_batch_gen_val = data_utils.data_generator(X_target_val, X_sketch_val, batch_size, augment_data=False)
 
         # Load data from images through an ImageDataGenerator
         else:
-            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size, augment_data=augment_data)
-            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size, augment_data=False)
+            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
+            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
 
         check_this_process_memory()
 
@@ -233,7 +233,7 @@ def train(**kwargs):
         gen_log_losses = []
 
         # Start training
-        print("\n\nStarting training\n\n")
+        print("\n\nStarting training...\n\n")
 
         # For each epoch
         for e in range(nb_epoch):
@@ -247,18 +247,16 @@ def train(**kwargs):
             start = time.time()
             
             # For each batch
-            # for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
+            # for X_target_batch, X_sketch_batch in data_utils.gen_batch(X_target_train, X_sketch_train, batch_size):
             for batch in range(n_batch_per_epoch):
                 
                 # Create a batch to feed the discriminator model
                 if load_all_data_at_once:
-                    X_full_batch_train, X_sketch_batch_train = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                    X_target_batch_train, X_sketch_batch_train = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
-                    X_batch_train = next(X_batch_gen_train)
-                    X_full_batch_train = X_batch_train[:, :, :img_dim[1]]
-                    X_sketch_batch_train = X_batch_train[:, :, img_dim[1]:]
+                    X_target_batch_train, X_sketch_batch_train = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
 
-                X_disc, y_disc = data_utils.get_disc_batch(X_full_batch_train,
+                X_disc, y_disc = data_utils.get_disc_batch(X_target_batch_train,
                                                            X_sketch_batch_train,
                                                            generator_model,
                                                            batch_counter,
@@ -272,32 +270,28 @@ def train(**kwargs):
                 
                 # Create a batch to feed the generator model
                 if load_all_data_at_once:
-                    X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                    X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
-                    X_batch = next(X_batch_gen_train)
-                    X_gen_target = X_batch[:, :, :img_dim[1]]
-                    X_gen = X_batch[:, :, img_dim[1]:]
+                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
 
-                y_gen = np.zeros((X_gen.shape[0], 2), dtype=np.uint8)
-                y_gen[:, 1] = 1
+                y_gen_target = np.zeros((X_gen_target.shape[0], 2), dtype=np.uint8)
+                y_gen_target[:, 1] = 1
                 
                 # Freeze the discriminator
                 discriminator_model.trainable = False
                 
                 # Train generator
                 for _ in range(n_run_of_gen_for_1_run_of_disc-1):
-                    gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                    gen_loss = DCGAN_model.train_on_batch(X_gen_sketch, [X_gen_target, y_gen_target])
                     gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
                     gen_L1_loss_epoch += gen_loss[1]/n_run_of_gen_for_1_run_of_disc
                     gen_log_loss_epoch += gen_loss[2]/n_run_of_gen_for_1_run_of_disc
                     if load_all_data_at_once:
-                        X_gen_target, X_gen = next(X_full_batch_gen_train), next(X_sketch_batch_gen_train)
+                        X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                     else:
-                        X_batch = next(X_batch_gen_train)
-                        X_gen_target = X_batch[:, :, :img_dim[1]]
-                        X_gen = X_batch[:, :, img_dim[1]:]
+                        X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
 
-                gen_loss = DCGAN_model.train_on_batch(X_gen, [X_gen_target, y_gen])
+                gen_loss = DCGAN_model.train_on_batch(X_gen_sketch, [X_gen_target, y_gen_target])
                 
                 # Add losses
                 gen_total_loss_epoch += gen_loss[0]/n_run_of_gen_for_1_run_of_disc
@@ -322,22 +316,17 @@ def train(**kwargs):
             gen_L1_losses.append(gen_L1_loss)
             gen_log_losses.append(gen_log_loss)
             
-            check_this_process_memory()
-            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d} end, Time taken: {3:.4f}'.format(datetime.datetime.now(), init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
-            
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
-                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                data_utils.plot_generated_batch(X_target_batch_train, X_sketch_batch_train, generator_model, batch_size, image_data_format,
                                                 model_name, "training", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Get new images for validation
                 if load_all_data_at_once:
-                    X_full_batch_val, X_sketch_batch_val = next(X_full_batch_gen_val), next(X_sketch_batch_gen_val)
+                    X_target_batch_val, X_sketch_batch_val = next(X_target_batch_gen_val), next(X_sketch_batch_gen_val)
                 else:
-                    X_batch_val = next(X_batch_gen_val)
-                    X_full_batch_val = X_batch_val[:, :, :img_dim[1]]
-                    X_sketch_batch_val = X_batch_val[:, :, img_dim[1]:]
+                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False)
                 # Predict and validate
-                data_utils.plot_generated_batch(X_full_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
+                data_utils.plot_generated_batch(X_target_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Plot losses
                 data_utils.plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch)
@@ -355,6 +344,10 @@ def train(**kwargs):
                 # Save DCGAN weights
                 DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
+
+            check_this_process_memory()
+            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d} END, Time taken: {3:.4f} seconds'.format(datetime.datetime.now(), init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
+            print('------------------------------------------------------------------------------------')
 
     except KeyboardInterrupt:
         pass

@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     # args = parse_my_args()
     # EXAMPLE:
-    # python3 main.py 64 64 --dset andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss
+    # python3 main.py 64 64 --dset ../../data/andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss
 
     # Set the backend by modifying the env variable
     if args.backend == "theano":

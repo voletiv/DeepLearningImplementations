@@ -14,7 +14,7 @@ def normalization(X):
 
 
 def inverse_normalization(X):
-    return np.array((X + 1.) / 2.)
+    return np.round((X + 1.) / 2. * 255.).astype('uint8')
 
 
 def get_nb_patch(img_dim, patch_size, image_data_format):
@@ -123,21 +123,13 @@ def data_generator(X_out, X_in, batch_size, augment_data=True):
     return output_image_generator, input_image_generator
 
 
-def data_generator_from_dir(data_dir, target_size, batch_size, augment_data=True):
+def data_generator_from_dir(data_dir, target_size, batch_size):
 
     # data_gen args
     print("Loading data from", data_dir)
 
-    if augment_data:
-        data_generator_args = dict(rotation_range=10.,
-                                   width_shift_range=0.1,
-                                   height_shift_range=0.1,
-                                   zoom_range=0.2,
-                                   horizontal_flip=True)
-    else:
-        data_generator_args = {}
-
     # datagens
+    data_generator_args = {}
     image_datagen = ImageDataGenerator(**data_generator_args)
 
     # Image generators
@@ -147,6 +139,32 @@ def data_generator_from_dir(data_dir, target_size, batch_size, augment_data=True
         raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)
 
     return image_data_generator
+
+
+def load_data_from_data_generator_from_dir(image_data_generator, image_dim=(256, 256), augment_data=True):
+
+    if augment_data:
+        data_augmentor_args = dict(rotation_range=10.,
+                                   width_shift_range=0.1,
+                                   height_shift_range=0.1,
+                                   zoom_range=0.2,
+                                   horizontal_flip=True)
+    else:
+        data_augmentor_args = {}
+
+    image_data_aug = ImageDataGenerator(**data_augmentor_args)
+
+    X_batch = next(image_data_generator)
+    X_batch_target = X_batch[:, :, :img_dim[1]]
+    X_batch_sketch = X_batch[:, :, img_dim[1]:]
+
+    target_data_augmentor = image_data_aug.flow(X_batch_target, batch_size=len(X_batch_target), shuffle=False, seed=29)
+    sketch_data_augmentor = image_data_aug.flow(X_batch_sketch, batch_size=len(X_batch_sketch), shuffle=False, seed=29)
+
+    X_batch_target_aug = next(target_data_augmentor)
+    X_batch_sketch_aug = next(sketch_data_augmentor)
+
+    return normalization(X_batch_target_aug), normalization(X_batch_sketch_aug)
 
 
 def gen_batch(X1, X2, batch_size):
@@ -193,17 +211,15 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     # Generate images
     X_gen = generator_model.predict(X_sketch)
 
-    X_sketch = inverse_normalization(X_sketch)
-    X_full = inverse_normalization(X_full)
-    X_gen = inverse_normalization(X_gen)
+    Xs = inverse_normalization(X_sketch[:4])
+    Xg = inverse_normalization(X_gen[:4])
+    Xf = inverse_normalization(X_full[:4])
 
-    Xs = X_sketch[:4]
-    Xg = X_gen[:4]
-    Xr = X_full[:4]
+    X = np.concatenate((Xs, Xg, Xf), axis=0)
+    list_rows = []
 
     if image_data_format == "channels_last":
-        X = np.concatenate((Xs, Xg, Xr), axis=0)
-        list_rows = []
+
         for i in range(int(X.shape[0] // 4)):
             Xr = np.concatenate([X[k] for k in range(4 * i, 4 * (i + 1))], axis=1)
             list_rows.append(Xr)
@@ -211,8 +227,7 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
         Xr = np.concatenate(list_rows, axis=0)
 
     if image_data_format == "channels_first":
-        X = np.concatenate((Xs, Xg, Xr), axis=0)
-        list_rows = []
+
         for i in range(int(X.shape[0] // 4)):
             Xr = np.concatenate([X[k] for k in range(4 * i, 4 * (i + 1))], axis=2)
             list_rows.append(Xr)
@@ -220,15 +235,12 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
         Xr = np.concatenate(list_rows, axis=1)
         Xr = Xr.transpose(1,2,0)
 
-    if Xr.shape[-1] == 1:
-        plt.imshow(Xr[:, :, 0], cmap="gray")
-    else:
-        plt.imshow(Xr)
-    plt.title("Iteration " + str(iteration_number))
-    plt.axis("off")
-    plt.savefig(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix))
-    plt.clf()
-    plt.close()
+    # Make iter text
+    Xr = cv2.putText(np.concatenate((np.zeros((32, Xr.shape[1], Xr.shape[2])), Xr), axis=0),
+                     'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+
+    # Save
+    imageio.imsave(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix), Xr)
 
     # Make gif
     gif_frames = []
@@ -242,17 +254,21 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
         pass
 
     # Append new frame
-    im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0), 'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (1,1,1), 1, cv2.LINE_AA)
+    im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0),
+                     'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
     gif_frames.append(im)
 
     # If frames exceeds, save as different file
     if len(gif_frames) > MAX_FRAMES_PER_GIF:
+        print("Splitting the GIF...")
         gif_frames_00 = gif_frames[:MAX_FRAMES_PER_GIF]
         num_of_gifs_already_saved = len(glob.glob(os.path.join("../../figures", model_name, model_name + "_%s_*.gif" % suffix)))
+        print("Saving", os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)))
         imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)), gif_frames_00)
         gif_frames = gif_frames[MAX_FRAMES_PER_GIF:]
 
     # Save gif
+    print("Saving", os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
     imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
 
 
