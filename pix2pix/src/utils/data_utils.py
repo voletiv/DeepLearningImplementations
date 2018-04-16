@@ -141,7 +141,7 @@ def data_generator_from_dir(data_dir, target_size, batch_size):
     return image_data_generator
 
 
-def load_data_from_data_generator_from_dir(image_data_generator, image_dim=(256, 256), augment_data=True):
+def load_data_from_data_generator_from_dir(image_data_generator, img_dim=(256, 256), augment_data=True):
 
     if augment_data:
         data_augmentor_args = dict(rotation_range=10.,

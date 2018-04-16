@@ -1,6 +1,7 @@
 import datetime
 import glob
 import imageio
+import json
 import numpy as np
 import os
 import psutil
@@ -337,12 +338,15 @@ def train(**kwargs):
                 purge_weights(save_only_last_n_weights, model_name)
                 # Save gen weights
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
+                print("Saving", gen_weights_path)
                 generator_model.save_weights(gen_weights_path, overwrite=True)
                 # Save disc weights
                 disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
+                print("Saving", disc_weights_path)
                 discriminator_model.save_weights(disc_weights_path, overwrite=True)
                 # Save DCGAN weights
                 DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d_discLoss%.04f_genTotL%.04f_genL1L%.04f_genLogL%.04f.h5' % (model_name, init_epoch + e, disc_losses[-1], gen_total_losses[-1], gen_L1_losses[-1], gen_log_losses[-1]))
+                print("Saving", DCGAN_weights_path)
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
 
             check_this_process_memory()
@@ -352,3 +356,24 @@ def train(**kwargs):
     except KeyboardInterrupt:
         pass
 
+    # SAVE THE MODEL
+
+    # Save the model as it is, so that it can be loaded using -
+    # ```from keras.models import load_model; gen = load_model('generator_latest.h5')```
+    gen_weights_path = '../../models/%s/generator_latest.h5' % (model_name)
+    print("Saving", gen_weights_path)
+    generator_model.save(gen_weights_path, overwrite=True)
+
+    # Save model as json string
+    generator_model_json_string = generator_model.to_json()
+    print("Saving", '../../models/%s/generator_latest.txt' % model_name)
+    with open('../../models/%s/generator_latest.txt' % model_name, 'w') as outfile:
+        a = outfile.write(generator_model_json_string)
+
+    # Save model as json
+    generator_model_json_data = json.loads(generator_model_json_string)
+    print("Saving", '../../models/%s/generator_latest.json' % model_name)
+    with open('../../models/%s/generator_latest.json' % model_name, 'w') as outfile:
+        json.dump(generator_model_json_data, outfile)
+
+    print("Done.")
