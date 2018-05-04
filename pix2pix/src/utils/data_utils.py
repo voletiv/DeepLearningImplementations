@@ -272,6 +272,18 @@ def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_da
     imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
 
 
+def plot_gen_losses(gen_losses, model_name, init_epoch=0):
+    epochs = np.arange(len(gen_losses)) + init_epoch
+    fig = plt.figure()
+    plt.plot(epochs, gen_losses, label='gen_loss')
+    plt.legend()
+    plt.title("Generator loss")
+    plt.xlabel("Epochs")
+    plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"))
+    plt.clf()
+    plt.close()
+
+
 def plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, model_name, init_epoch=0):
     # epochs = np.arange(len(disc_losses))
     epochs = np.arange(len(disc_losses)) + init_epoch
@@ -309,3 +321,4 @@ def plot_losses(disc_losses, gen_total_losses, gen_L1_losses, gen_log_losses, mo
     plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"))
     plt.clf()
     plt.close()
+
