@@ -2,10 +2,7 @@ import argparse
 import os
 import datetime
 
-
-def launch_training(**kwargs):
-    # Launch training
-    train.train(**kwargs)
+import keras.backend as K
 
 
 def parse_my_args(patch_size=[64, 64], backend='tensorflow', generator_type='upsampling',
@@ -57,7 +54,8 @@ if __name__ == "__main__":
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
-    parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (def: False)")
+    parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (default: False)")
+    parser.add_argument('--train_only_generator', action="store_true", help="Whether to train only generator, instead of DCGAN (default: False)")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
     parser.add_argument('--discriminator_optimizer', default='sgd', type=str, help="discriminator_optimizer: sgd or (default) adam")
     parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
@@ -78,7 +76,6 @@ if __name__ == "__main__":
         os.environ["KERAS_BACKEND"] = "tensorflow"
 
     # Import the backend
-    import keras.backend as K
 
     # manually set dim ordering otherwise it is not changed
     if args.backend == "theano":
@@ -87,8 +84,6 @@ if __name__ == "__main__":
     elif args.backend == "tensorflow":
         image_data_format = "channels_last"
         K.set_image_data_format(image_data_format)
-
-    import train
 
     model_name_prefix = "{:%Y%m%d_%H%M%S}".format(datetime.datetime.now())
 
@@ -116,6 +111,7 @@ if __name__ == "__main__":
                 "use_label_smoothing": args.use_label_smoothing,
                 "label_flipping_prob": args.label_flipping_prob,
                 "use_l1_weighted_loss": args.use_l1_weighted_loss,
+                "train_only_generator": args.train_only_generator,
                 "prev_model": args.prev_model,
                 "discriminator_optimizer": args.discriminator_optimizer,
                 "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
@@ -124,7 +120,12 @@ if __name__ == "__main__":
                 }
 
     # Launch training
-    launch_training(**d_params)
+    if args.train_only_generator:
+        import train_only_generator
+        train_only_generator.train(**d_params)
+    else:
+        import train
+        train.train(**d_params)
     
     # print(d_params)
     

@@ -1,5 +1,7 @@
+import datetime
 import glob
 import imageio
+import json
 import numpy as np
 import os
 import psutil
@@ -42,10 +44,27 @@ def check_this_process_memory():
     print('memory use: %.4f' % memoryUse, 'GB')
 
 
+def purge_weights(n, model_name):
+    # disc
+    disc_weight_files = glob.glob('../../models/%s/disc_weights*' % model_name)
+    for disc_weight_file in disc_weight_files[:-n]:
+        os.remove(os.path.realpath(disc_weight_file))
+    # gen
+    gen_weight_files = glob.glob('../../models/%s/gen_weights*' % model_name)
+    for gen_weight_file in gen_weight_files[:-n]:
+        os.remove(os.path.realpath(gen_weight_file))
+    # DCGAN
+    DCGAN_weight_files = glob.glob('../../models/%s/DCGAN_weights*' % model_name)
+    for DCGAN_weight_file in DCGAN_weight_files[:-n]:
+        os.remove(os.path.realpath(DCGAN_weight_file))
+
+
 def train(**kwargs):
     """
     Train model
+
     Load the whole train data in memory for faster operations
+
     args: **kwargs (dict) keyword arguments that specify the model hyperparameters
     """
 
@@ -57,9 +76,11 @@ def train(**kwargs):
     batch_size = kwargs["batch_size"]
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
+    augment_data = kwargs["augment_data"]
     model_name = kwargs["model_name"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
+    save_only_last_n_weights = kwargs["save_only_last_n_weights"]
     use_mbd = kwargs["use_mbd"]
     label_smoothing = kwargs["use_label_smoothing"]
     label_flipping_prob = kwargs["label_flipping_prob"]
@@ -67,6 +88,7 @@ def train(**kwargs):
     prev_model = kwargs["prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
     n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
+    load_all_data_at_once = kwargs["load_all_data_at_once"]
     MAX_FRAMES_PER_GIF = kwargs["MAX_FRAMES_PER_GIF"]
 
     # batch_size = args.batch_size
@@ -82,19 +104,30 @@ def train(**kwargs):
 
     # Check and make the dataset
     # If .h5 file of dset is not present, try making it
-    if not os.path.exists("../../data/processed/%s_data.h5" % dset):
-        print("dset %s_data.h5 not present in '../../data/processed'!" % dset)
-        if not os.path.exists("../../data/%s/" % dset):
-            print("dset folder %s not present in '../../data'!\n\nERROR: Dataset .h5 file not made, and dataset not available in '../../data/'.\n\nQuitting." % dset)
-            return
-        else:
-            if not os.path.exists("../../data/%s/train" % dset) or not os.path.exists("../../data/%s/val" % dset) or not os.path.exists("../../data/%s/test" % dset):
-                print("'train', 'val' or 'test' folders not present in dset folder '../../data/%s'!\n\nERROR: Dataset must contain 'train', 'val' and 'test' folders.\n\nQuitting." % dset)
+    if load_all_data_at_once:
+        if not os.path.exists("../../data/processed/%s_data.h5" % dset):
+            print("dset %s_data.h5 not present in '../../data/processed'!" % dset)
+            if not os.path.exists("../../data/%s/" % dset):
+                print("dset folder %s not present in '../../data'!\n\nERROR: Dataset .h5 file not made, and dataset not available in '../../data/'.\n\nQuitting." % dset)
                 return
             else:
-                print("Making %s dataset" % dset)
-                subprocess.call(['python3', '../data/make_dataset.py', '../../data/%s' % dset, '3'])
-                print("Done!")
+                if not os.path.exists("../../data/%s/train" % dset) or not os.path.exists("../../data/%s/val" % dset) or not os.path.exists("../../data/%s/test" % dset):
+                    print("'train', 'val' or 'test' folders not present in dset folder '../../data/%s'!\n\nERROR: Dataset must contain 'train', 'val' and 'test' folders.\n\nQuitting." % dset)
+                    return
+                else:
+                    print("Making %s dataset" % dset)
+                    subprocess.call(['python3', '../data/make_dataset.py', '../../data/%s' % dset, '3'])
+                    print("Done!")
+    else:
+        if not os.path.exists(dset):
+            print("dset does not exist! Given:", dset)
+            return
+        if not os.path.exists(os.path.join(dset, 'train')):
+            print("dset does not contain a 'train' dir! Given dset:", dset)
+            return
+        if not os.path.exists(os.path.join(dset, 'val')):
+            print("dset does not contain a 'val' dir! Given dset:", dset)
+            return
 
     epoch_size = n_batch_per_epoch * batch_size
 
@@ -107,10 +140,7 @@ def train(**kwargs):
         model_name = prev_model_latest_gen.split('models')[-1].split('/')[1]
         init_epoch = int(prev_model_latest_gen.split('epoch')[1][:5]) + 1
 
-    # Setup environment (logging directory etc), if no prev_model is mentioned
-    general_utils.setup_logging(model_name)
-
-    # img_dim = X_full_train.shape[-3:]
+    # img_dim = X_target_train.shape[-3:]
     img_dim = (256, 256, 3)
 
     # Get the number of non overlapping patch and the size of input image to the discriminator
@@ -118,7 +148,7 @@ def train(**kwargs):
 
     try:
 
-        # Create optimizers
+        # Create optimizer
         opt_generator = Adam(lr=1E-3, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
 
         # Load generator model
@@ -129,80 +159,132 @@ def train(**kwargs):
                                       batch_size,
                                       model_name)
 
+
         if use_l1_weighted_loss:
-            loss = [l1_weighted_loss]
+            loss = l1_weighted_loss
         else:
-            loss = ['mae']
-        
+            loss = 'mae'
+
         generator_model.compile(loss=loss, optimizer=opt_generator)
 
         # Load prev_model
         if prev_model:
             generator_model.load_weights(prev_model_latest_gen)
 
-        # Load and rescale data
+        # Load .h5 data all at once
         print('\n\nLoading data...\n\n')
-        X_full_train, X_sketch_train, X_full_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
         check_this_process_memory()
-        print('X_full_train: %.4f' % (X_full_train.nbytes/2**30), "GB")
-        print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
-        print('X_full_val: %.4f' % (X_full_val.nbytes/2**30), "GB")
-        print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+
+        if load_all_data_at_once:
+            X_target_train, X_sketch_train, X_target_val, X_sketch_val = data_utils.load_data(dset, image_data_format)
+            check_this_process_memory()
+            print('X_target_train: %.4f' % (X_target_train.nbytes/2**30), "GB")
+            print('X_sketch_train: %.4f' % (X_sketch_train.nbytes/2**30), "GB")
+            print('X_target_val: %.4f' % (X_target_val.nbytes/2**30), "GB")
+            print('X_sketch_val: %.4f' % (X_sketch_val.nbytes/2**30), "GB")
+
+            # To generate training data
+            X_target_batch_gen_train, X_sketch_batch_gen_train = data_utils.data_generator(X_target_train, X_sketch_train, batch_size, augment_data=augment_data)
+            X_target_batch_gen_val, X_sketch_batch_gen_val = data_utils.data_generator(X_target_val, X_sketch_val, batch_size, augment_data=False)
+
+        # Load data from images through an ImageDataGenerator
+        else:
+            X_batch_gen_train = data_utils.data_generator_from_dir(os.path.join(dset, 'train'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
+            X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
+
+        check_this_process_memory()
+
+        # Setup environment (logging directory etc)
+        general_utils.setup_logging(**kwargs)
 
         # Losses
-        gen_total_losses = []
+        gen_losses = []
 
         # Start training
-        print("\n\nStarting training\n\n")
-        for e in range(nb_epoch):
+        print("\n\nStarting training...\n\n")
 
+        # For each epoch
+        for e in range(nb_epoch):
+            
             # Initialize progbar and batch counter
             # progbar = generic_utils.Progbar(epoch_size)
-
             batch_counter = 0
-            gen_total_loss_epoch = 0
-            gen_L1_loss_epoch = 0
-            gen_log_loss_epoch = 0
+            gen_loss_epoch = 0
             start = time.time()
-
-            for X_full_batch, X_sketch_batch in data_utils.gen_batch(X_full_train, X_sketch_train, batch_size):
+            
+            # For each batch
+            # for X_target_batch, X_sketch_batch in data_utils.gen_batch(X_target_train, X_sketch_train, batch_size):
+            for batch in range(n_batch_per_epoch):
                 
                 # Create a batch to feed the generator model
-                X_gen_target, X_gen = next(data_utils.gen_batch(X_full_train, X_sketch_train, batch_size))
+                if load_all_data_at_once:
+                    X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
+                else:
+                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
                 
-                # Train the generator
-                gen_loss = generator_model.train_on_batch(X_gen, X_gen_target)
+                # Train generator
+                gen_loss = generator_model.train_on_batch(X_gen_sketch, X_gen_target)
                 
                 # Add losses
-                gen_total_loss_epoch += gen_loss
+                gen_loss_epoch += gen_loss
                 
-                print("Epoch", str(init_epoch+e+1), "batch", str(batch_counter+1), "G_tot", gen_loss[0])
-                
-                batch_counter += 1
-                if batch_counter >= n_batch_per_epoch:
-                    break
+                print("Epoch", str(init_epoch+e+1), "batch", str(batch+1), "G_loss", gen_loss)
             
-            gen_total_loss = gen_total_loss_epoch/n_batch_per_epoch
-            gen_total_losses.append(gen_total_loss)
-            check_this_process_memory()
-            print('Epoch %s/%s, Time: %.4f' % (init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
+            # Append loss
+            gen_losses.append(gen_loss_epoch/n_batch_per_epoch)
             
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
-                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                data_utils.plot_generated_batch(X_gen_target, X_gen_sketch, generator_model, batch_size, image_data_format,
                                                 model_name, "training", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
-
-                # Get new images from validation
-                X_full_batch, X_sketch_batch = next(data_utils.gen_batch(X_full_val, X_sketch_val, batch_size))
-                data_utils.plot_generated_batch(X_full_batch, X_sketch_batch, generator_model, batch_size, image_data_format,
+                # Get new images for validation
+                if load_all_data_at_once:
+                    X_target_batch_val, X_sketch_batch_val = next(X_target_batch_gen_val), next(X_sketch_batch_gen_val)
+                else:
+                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False)
+                # Predict and validate
+                data_utils.plot_generated_batch(X_target_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
                 # Plot losses
-                data_utils.plot_losses(gen_total_losses, model_name, init_epoch)
+                data_utils.plot_gen_losses(gen_losses, model_name, init_epoch)
             
             # Save weights
             if (e + 1) % save_weights_every_n_epochs == 0:
-                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_genTotL%.04f.h5' % (model_name, init_epoch + e, gen_total_losses[-1]))
+                # Delete all but the last n weights
+                purge_weights(save_only_last_n_weights, model_name)
+                # Save gen weights
+                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d_genLoss%.04f.h5' % (model_name, init_epoch + e, gen_losses[-1]))
+                print("Saving", gen_weights_path)
                 generator_model.save_weights(gen_weights_path, overwrite=True)
 
+            check_this_process_memory()
+            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d} END, Time taken: {3:.4f} seconds'.format(datetime.datetime.now(), init_epoch + e + 1, init_epoch + nb_epoch, time.time() - start))
+            print('------------------------------------------------------------------------------------')
+
     except KeyboardInterrupt:
-pass
+        pass
+
+    # SAVE THE MODEL
+
+    # Save the model as it is, so that it can be loaded using -
+    # ```from keras.models import load_model; gen = load_model('generator_latest.h5')```
+    gen_weights_path = '../../models/%s/generator_latest.h5' % (model_name)
+    print("Saving", gen_weights_path)
+    if use_l1_weighted_loss:
+        generator_model.compile(loss='mae', optimizer=opt_generator)
+    generator_model.save(gen_weights_path, overwrite=True)
+
+    # Save model as json string
+    generator_model_json_string = generator_model.to_json()
+    print("Saving", '../../models/%s/generator_latest.txt' % model_name)
+    with open('../../models/%s/generator_latest.txt' % model_name, 'w') as outfile:
+        a = outfile.write(generator_model_json_string)
+
+    # Save model as json
+    generator_model_json_data = json.loads(generator_model_json_string)
+    print("Saving", '../../models/%s/generator_latest.json' % model_name)
+    with open('../../models/%s/generator_latest.json' % model_name, 'w') as outfile:
+        json.dump(generator_model_json_data, outfile)
+
+    print("Done.")
+
