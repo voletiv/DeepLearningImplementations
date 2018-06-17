@@ -41,10 +41,12 @@ def parse_my_args(patch_size=[64, 64], backend='tensorflow', generator_type='ups
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train model')
-    parser.add_argument('patch_size', type=int, nargs=2, action="store", help="Patch size for D")
+    parser.add_argument('--img_dim', type=int, nargs=3, default=[256, 256, 3], help="Patch size for D")
+    parser.add_argument('--patch_size', type=int, nargs=2, default=[64, 64], help="Patch size for D")
     parser.add_argument('--backend', type=str, default="tensorflow", help="theano or tensorflow")
     parser.add_argument('--generator_type', type=str, default="upsampling", help="upsampling or deconv")
     parser.add_argument('--dset', type=str, default="facades", help="dir with 'train' and 'val' dirs with faces_combined images, OR .h5 data file name in the data/processed dir")
+    parser.add_argument('--use_identity_image', action="store_true", help="Use identity image")
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=100, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
@@ -69,9 +71,9 @@ if __name__ == "__main__":
 
     # args = parse_my_args()
     # EXAMPLE:
-    # python3 -i main.py 64 64 --dset ../../data/andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss --prev_model 2018_07_31_harry_potter
+    # python3 -i main.py --dset ../../data/andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss --prev_model 2018_07_31_harry_potter
 
-    # python3 -i main.py 64 64 --dset ../../data/andrew_ng_new --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --train_only_generator
+    # python3 -i main.py --dset ../../data/andrew_ng_new --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --train_only_generator
 
     # Set the backend by modifying the env variable
     if args.backend == "theano":
@@ -100,10 +102,12 @@ if __name__ == "__main__":
 
     # Set default params
     d_params = {"command": " ".join(["python"] + sys.argv),
+                "img_dim": args.img_dim,
                 "patch_size": args.patch_size,
                 "image_data_format": image_data_format,
                 "generator_type": args.generator_type,
                 "dset": args.dset,
+                "use_identity_image": args.use_identity_image,
                 "batch_size": args.batch_size,
                 "n_batch_per_epoch": args.n_batch_per_epoch,
                 "nb_epoch": args.nb_epoch,

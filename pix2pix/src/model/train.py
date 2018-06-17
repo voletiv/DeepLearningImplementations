@@ -69,10 +69,12 @@ def train(**kwargs):
     """
 
     # Roll out the parameters
+    img_dim = kwargs["img_dim"]
     patch_size = kwargs["patch_size"]
     image_data_format = kwargs["image_data_format"]
     generator_type = kwargs["generator_type"]
     dset = kwargs["dset"]
+    use_identity_image = kwargs["use_identity_image"]
     batch_size = kwargs["batch_size"]
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
@@ -146,7 +148,7 @@ def train(**kwargs):
             init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
 
     # img_dim = X_target_train.shape[-3:]
-    img_dim = (256, 256, 3)
+    # img_dim = (256, 256, 3)
 
     # Get the number of non overlapping patch and the size of input image to the discriminator
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
@@ -258,7 +260,9 @@ def train(**kwargs):
                 if load_all_data_at_once:
                     X_target_batch_train, X_sketch_batch_train = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
-                    X_target_batch_train, X_sketch_batch_train = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
+                    X_target_batch_train, X_sketch_batch_train = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim,
+                                                                                                                   augment_data=augment_data,
+                                                                                                                   use_identity_image=use_identity_image)
 
                 X_disc, y_disc = data_utils.get_disc_batch(X_target_batch_train,
                                                            X_sketch_batch_train,
@@ -276,7 +280,9 @@ def train(**kwargs):
                 if load_all_data_at_once:
                     X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
-                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
+                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim,
+                                                                                                   augment_data=augment_data,
+                                                                                                   use_identity_image=use_identity_image)
 
                 y_gen_target = np.zeros((X_gen_target.shape[0], 2), dtype=np.uint8)
                 y_gen_target[:, 1] = 1
@@ -293,7 +299,9 @@ def train(**kwargs):
                     if load_all_data_at_once:
                         X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                     else:
-                        X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
+                        X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim,
+                                                                                                       augment_data=augment_data,
+                                                                                                       use_identity_image=use_identity_image)
 
                 gen_loss = DCGAN_model.train_on_batch(X_gen_sketch, [X_gen_target, y_gen_target])
                 
@@ -328,7 +336,7 @@ def train(**kwargs):
                 if load_all_data_at_once:
                     X_target_batch_val, X_sketch_batch_val = next(X_target_batch_gen_val), next(X_sketch_batch_gen_val)
                 else:
-                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False)
+                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False, use_identity_image=use_identity_image)
                 # Predict and validate
                 data_utils.plot_generated_batch(X_target_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)

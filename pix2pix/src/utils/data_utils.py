@@ -146,7 +146,7 @@ def data_generator_from_dir(data_dir, target_size, batch_size):
     return image_data_generator
 
 
-def load_data_from_data_generator_from_dir(image_data_generator, img_dim=(256, 256), augment_data=True):
+def load_data_from_data_generator_from_dir(image_data_generator, img_dim=(256, 256), augment_data=True, use_identity_image=False):
 
     if augment_data:
         data_augmentor_args = dict(rotation_range=10.,
@@ -160,8 +160,15 @@ def load_data_from_data_generator_from_dir(image_data_generator, img_dim=(256, 2
     image_data_aug = ImageDataGenerator(**data_augmentor_args)
 
     X_batch = next(image_data_generator)
-    X_batch_target = X_batch[:, :, :img_dim[1]]
-    X_batch_sketch = X_batch[:, :, img_dim[1]:]
+    if use_identity_image:
+        # X_batch : target - sketch - identity
+        # X_batch_target : target - identity
+        # X_batch_sketch : sketch - identity
+        X_batch_target = np.concatenate((X_batch[:, :, :img_dim[1]], X_batch[:, :, -img_dim[1]:]), axis=-2)
+        X_batch_sketch = X_batch[:, :, img_dim[1]:]
+    else:
+        X_batch_target = X_batch[:, :, :img_dim[1]]
+        X_batch_sketch = X_batch[:, :, img_dim[1]:]
 
     target_data_augmentor = image_data_aug.flow(X_batch_target, batch_size=len(X_batch_target), shuffle=False, seed=29)
     sketch_data_augmentor = image_data_aug.flow(X_batch_sketch, batch_size=len(X_batch_sketch), shuffle=False, seed=29)

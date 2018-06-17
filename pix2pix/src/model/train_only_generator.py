@@ -27,16 +27,23 @@ a = np.exp(-np.linspace(-w//2+1, w//2, w)**2/(50/(w/150))**2)
 b = np.exp(-np.linspace(-w//2+1, w//2, w)**2/(50/(w/200))**2)
 gaussian_overlap = a[:, np.newaxis] * b[np.newaxis, :]
 gaussian_overlap = np.vstack((np.zeros((30, w)), gaussian_overlap[:-30]))
-gaussian_overlap = tf.convert_to_tensor(gaussian_overlap, dtype=tf.float32)
+gaussian_overlap_tf = tf.convert_to_tensor(gaussian_overlap, dtype=tf.float32)
+gaussian_overlap_left_tf = tf.convert_to_tensor(np.hstack((gaussian_overlap, np.zeros((w, w)))), dtype=tf.float32)
+gaussian_overlap_right_tf = tf.convert_to_tensor(np.hstack((np.zeros((w, w)), gaussian_overlap)), dtype=tf.float32)
+
+
+def l1_weighted_identity_loss(y_true, y_pred):
+    l1_loss = K.mean(K.abs(y_pred - y_true), axis=-1)
+    return l1_loss + tf.multiply(l1_loss, gaussian_overlap_left_tf) + tf.multiply(l1_loss, gaussian_overlap_right_tf)
 
 
 def l1_weighted_loss(y_true, y_pred):
-    reconstruction_loss = K.sum(K.abs(y_pred - y_true), axis=-1)
-    return reconstruction_loss + tf.multiply(reconstruction_loss, gaussian_overlap)
+    reconstruction_loss = K.mean(K.abs(y_pred - y_true), axis=-1)
+    return reconstruction_loss + tf.multiply(reconstruction_loss, gaussian_overlap_tf)
 
 
 def l1_loss(y_true, y_pred):
-    return K.sum(K.abs(y_pred - y_true), axis=-1)
+    return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
 def check_this_process_memory():
@@ -45,18 +52,9 @@ def check_this_process_memory():
 
 
 def purge_weights(n, model_name):
-    # disc
-    disc_weight_files = glob.glob('../../models/%s/disc_weights*' % model_name)
-    for disc_weight_file in disc_weight_files[:-n]:
-        os.remove(os.path.realpath(disc_weight_file))
-    # gen
     gen_weight_files = glob.glob('../../models/%s/gen_weights*' % model_name)
     for gen_weight_file in gen_weight_files[:-n]:
         os.remove(os.path.realpath(gen_weight_file))
-    # DCGAN
-    DCGAN_weight_files = glob.glob('../../models/%s/DCGAN_weights*' % model_name)
-    for DCGAN_weight_file in DCGAN_weight_files[:-n]:
-        os.remove(os.path.realpath(DCGAN_weight_file))
 
 
 def train(**kwargs):
@@ -69,10 +67,12 @@ def train(**kwargs):
     """
 
     # Roll out the parameters
+    img_dim = kwargs["img_dim"]
     patch_size = kwargs["patch_size"]
     image_data_format = kwargs["image_data_format"]
     generator_type = kwargs["generator_type"]
     dset = kwargs["dset"]
+    use_identity_image = kwargs["use_identity_image"]
     batch_size = kwargs["batch_size"]
     n_batch_per_epoch = kwargs["n_batch_per_epoch"]
     nb_epoch = kwargs["nb_epoch"]
@@ -144,7 +144,7 @@ def train(**kwargs):
             init_epoch = int(prev_model_latest_gen.split('epoch')[1][:5]) + 1
 
     # img_dim = X_target_train.shape[-3:]
-    img_dim = (256, 256, 3)
+    # img_dim = (256, 256, 3)
 
     # Get the number of non overlapping patch and the size of input image to the discriminator
     nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
@@ -162,11 +162,12 @@ def train(**kwargs):
                                       batch_size,
                                       model_name)
 
-
-        if use_l1_weighted_loss:
+        if use_l1_weighted_loss and use_identity_image:
+            loss = l1_weighted_identity_loss
+        elif use_l1_weighted_loss and not use_identity_image:
             loss = l1_weighted_loss
         else:
-            loss = 'mae'
+            loss = l1_loss
 
         generator_model.compile(loss=loss, optimizer=opt_generator)
 
@@ -223,7 +224,7 @@ def train(**kwargs):
                 if load_all_data_at_once:
                     X_gen_target, X_gen_sketch = next(X_target_batch_gen_train), next(X_sketch_batch_gen_train)
                 else:
-                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data)
+                    X_gen_target, X_gen_sketch = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_train, img_dim=img_dim, augment_data=augment_data, use_identity_image=use_identity_image)
                 
                 # Train generator
                 gen_loss = generator_model.train_on_batch(X_gen_sketch, X_gen_target)
@@ -244,7 +245,7 @@ def train(**kwargs):
                 if load_all_data_at_once:
                     X_target_batch_val, X_sketch_batch_val = next(X_target_batch_gen_val), next(X_sketch_batch_gen_val)
                 else:
-                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False)
+                    X_target_batch_val, X_sketch_batch_val = data_utils.load_data_from_data_generator_from_dir(X_batch_gen_val, img_dim=img_dim, augment_data=False, use_identity_image=use_identity_image)
                 # Predict and validate
                 data_utils.plot_generated_batch(X_target_batch_val, X_sketch_batch_val, generator_model, batch_size, image_data_format,
                                                 model_name, "validation", init_epoch + e + 1, MAX_FRAMES_PER_GIF)
