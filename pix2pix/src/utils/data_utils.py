@@ -138,6 +138,9 @@ def data_generator_from_dir(data_dir, target_size, batch_size):
     if len(image_data_generator) == 0:
         raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)
 
+    if len(image_data_generator) % batch_size != 0:
+        raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is not a multiple of the batch_size " + str(batch_size) + "! Please add more images.")
+
     return image_data_generator
 
 
@@ -206,38 +209,42 @@ def get_disc_batch(X_full_batch, X_sketch_batch, generator_model, batch_counter,
     return X_disc, y_disc
 
 
-def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_data_format, model_name, suffix, iteration_number, MAX_FRAMES_PER_GIF=1000):
+def plot_generated_batch(X_full, X_sketch, generator_model, batch_size, image_data_format, model_name, suffix, iteration_number, MAX_FRAMES_PER_GIF=1000, images_per_row=8):
 
     # Generate images
     X_gen = generator_model.predict(X_sketch)
 
-    Xs = inverse_normalization(X_sketch[:4])
-    Xg = inverse_normalization(X_gen[:4])
-    Xf = inverse_normalization(X_full[:4])
+    Xs = inverse_normalization(X_sketch[:8])
+    Xg = inverse_normalization(X_gen[:8])
+    Xf = inverse_normalization(X_full[:8])
 
     X = np.concatenate((Xs, Xg, Xf), axis=0)
     list_rows = []
 
+    # Make iter text
+    text_image = cv2.putText(np.zeros((32, int(Xs[0].shape[1] * images_per_row), Xs[0].shape[2])),
+                             'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+
     if image_data_format == "channels_last":
 
-        for i in range(int(X.shape[0] // 4)):
-            Xr = np.concatenate([X[k] for k in range(4 * i, 4 * (i + 1))], axis=1)
-            list_rows.append(Xr)
+        for i in range(int(len(X) // images_per_row // 3)):
+            list_rows.append(text_image)
+            for offset in range(0, len(X), len(X)//3):
+                Xr = np.concatenate([X[k] for k in range(images_per_row*i + offset, images_per_row*(i+1) + offset)], axis=1)
+                list_rows.append(Xr)
 
         Xr = np.concatenate(list_rows, axis=0)
 
-    if image_data_format == "channels_first":
+    elif image_data_format == "channels_first":
 
-        for i in range(int(X.shape[0] // 4)):
-            Xr = np.concatenate([X[k] for k in range(4 * i, 4 * (i + 1))], axis=2)
-            list_rows.append(Xr)
+        for i in range(int(len(X) // images_per_row // 3)):
+            list_rows.append(text_image)
+            for offset in range(0, len(X), len(X)//3):
+                Xr = np.concatenate([X[k] for k in range(images_per_row*i + offset, images_per_row*(i+1) + offset)], axis=2)
+                list_rows.append(Xr)
 
         Xr = np.concatenate(list_rows, axis=1)
-        Xr = Xr.transpose(1,2,0)
-
-    # Make iter text
-    Xr = cv2.putText(np.concatenate((np.zeros((32, Xr.shape[1], Xr.shape[2])), Xr), axis=0),
-                     'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+        Xr = Xr.transpose(1, 2, 0)
 
     # Save
     imageio.imsave(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix), Xr)
