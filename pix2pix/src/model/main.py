@@ -1,6 +1,7 @@
 import argparse
-import os
 import datetime
+import os
+import sys
 
 import keras.backend as K
 
@@ -50,13 +51,14 @@ if __name__ == "__main__":
     parser.add_argument('--dont_augment_data', action="store_true", help="Use data augmentation while training")
     parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Epoch at which weights will be saved")
     parser.add_argument('--visualize_images_every_n_epochs', default=10, type=int, help="Epoch at which images and graphs will be visualized")
-    parser.add_argument('--save_only_last_n_weights', default=10, type=int, help="Save only the last n .h5 files (of, gen, disc and DCGAN each)")
+    parser.add_argument('--save_only_last_n_weights', default=20, type=int, help="Save only the last n .h5 files (of, gen, disc and DCGAN each)")
     parser.add_argument('--use_mbd', action="store_true", help="Whether to use minibatch discrimination")
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
     parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (default: False)")
     parser.add_argument('--train_only_generator', action="store_true", help="Whether to train only generator, instead of DCGAN (default: False)")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
+    parser.add_argument('--change_model_name_to_prev_model', action="store_true", help="To change the model name to previous model")
     parser.add_argument('--discriminator_optimizer', default='sgd', type=str, help="discriminator_optimizer: sgd or (default) adam")
     parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--load_all_data_at_once', action="store_true", help="To load full data all at once from a .h5 file")
@@ -67,7 +69,9 @@ if __name__ == "__main__":
 
     # args = parse_my_args()
     # EXAMPLE:
-    # python3 main.py 64 64 --dset ../../data/andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss
+    # python3 -i main.py 64 64 --dset ../../data/andrew_ng --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --use_mbd --use_label_smoothing --label_flipping_prob 0.1 --use_l1_weighted_loss --prev_model 2018_07_31_harry_potter
+
+    # python3 -i main.py 64 64 --dset ../../data/andrew_ng_new --batch_size 8 --n_batch_per_epoch 4 --nb_epoch 20000 --dont_augment_data --save_weights_every_n_epochs 10 --visualize_images_every_n_epochs 10 --train_only_generator
 
     # Set the backend by modifying the env variable
     if args.backend == "theano":
@@ -95,7 +99,8 @@ if __name__ == "__main__":
     print("\n\nMODEL NAME: ", model_name, '\n\n')
 
     # Set default params
-    d_params = {"patch_size": args.patch_size,
+    d_params = {"command": " ".join(["python"] + sys.argv),
+                "patch_size": args.patch_size,
                 "image_data_format": image_data_format,
                 "generator_type": args.generator_type,
                 "dset": args.dset,
@@ -113,6 +118,7 @@ if __name__ == "__main__":
                 "use_l1_weighted_loss": args.use_l1_weighted_loss,
                 "train_only_generator": args.train_only_generator,
                 "prev_model": args.prev_model,
+                "change_model_name_to_prev_model": args.change_model_name_to_prev_model,
                 "discriminator_optimizer": args.discriminator_optimizer,
                 "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
                 "load_all_data_at_once" : args.load_all_data_at_once,
@@ -122,10 +128,10 @@ if __name__ == "__main__":
     # Launch training
     if args.train_only_generator:
         import train_only_generator
-        train_only_generator.train(**d_params)
+        generator_model = train_only_generator.train(**d_params)
     else:
         import train
-        train.train(**d_params)
+        generator_model = train.train(**d_params)
     
     # print(d_params)
     

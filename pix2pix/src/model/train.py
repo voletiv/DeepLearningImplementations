@@ -86,6 +86,7 @@ def train(**kwargs):
     label_flipping_prob = kwargs["label_flipping_prob"]
     use_l1_weighted_loss = kwargs["use_l1_weighted_loss"]
     prev_model = kwargs["prev_model"]
+    change_model_name_to_prev_model = kwargs["change_model_name_to_prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
     n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     load_all_data_at_once = kwargs["load_all_data_at_once"]
@@ -135,12 +136,14 @@ def train(**kwargs):
 
     if prev_model:
         print('\n\nLoading prev_model from', prev_model, '...\n\n')
-        prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
-        prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*.h5')))[-1]
-        prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*.h5')))[-1]
-        # Find prev model name, epoch
-        model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
-        init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
+        prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*epoch*.h5')))[-1]
+        prev_model_latest_disc = sorted(glob.glob(os.path.join('../../models/', prev_model, '*disc*epoch*.h5')))[-1]
+        prev_model_latest_DCGAN = sorted(glob.glob(os.path.join('../../models/', prev_model, '*DCGAN*epoch*.h5')))[-1]
+        print(prev_model_latest_gen, prev_model_latest_disc, prev_model_latest_DCGAN)
+        if change_model_name_to_prev_model:
+            # Find prev model name, epoch
+            model_name = prev_model_latest_DCGAN.split('models')[-1].split('/')[1]
+            init_epoch = int(prev_model_latest_DCGAN.split('epoch')[1][:5]) + 1
 
     # img_dim = X_target_train.shape[-3:]
     img_dim = (256, 256, 3)
@@ -358,22 +361,29 @@ def train(**kwargs):
 
     # SAVE THE MODEL
 
-    # Save the model as it is, so that it can be loaded using -
-    # ```from keras.models import load_model; gen = load_model('generator_latest.h5')```
-    gen_weights_path = '../../models/%s/generator_latest.h5' % (model_name)
-    print("Saving", gen_weights_path)
-    generator_model.save(gen_weights_path, overwrite=True)
+    try:
+        # Save the model as it is, so that it can be loaded using -
+        # ```from keras.models import load_model; gen = load_model('generator_latest.h5')```
+        gen_weights_path = '../../models/%s/generator_latest.h5' % (model_name)
+        print("Saving", gen_weights_path)
+        generator_model.save(gen_weights_path, overwrite=True)
+    
+        # Save model as json string
+        generator_model_json_string = generator_model.to_json()
+        print("Saving", '../../models/%s/generator_latest.txt' % model_name)
+        with open('../../models/%s/generator_latest.txt' % model_name, 'w') as outfile:
+            a = outfile.write(generator_model_json_string)
+    
+        # Save model as json
+        generator_model_json_data = json.loads(generator_model_json_string)
+        print("Saving", '../../models/%s/generator_latest.json' % model_name)
+        with open('../../models/%s/generator_latest.json' % model_name, 'w') as outfile:
+            json.dump(generator_model_json_data, outfile)
 
-    # Save model as json string
-    generator_model_json_string = generator_model.to_json()
-    print("Saving", '../../models/%s/generator_latest.txt' % model_name)
-    with open('../../models/%s/generator_latest.txt' % model_name, 'w') as outfile:
-        a = outfile.write(generator_model_json_string)
-
-    # Save model as json
-    generator_model_json_data = json.loads(generator_model_json_string)
-    print("Saving", '../../models/%s/generator_latest.json' % model_name)
-    with open('../../models/%s/generator_latest.json' % model_name, 'w') as outfile:
-        json.dump(generator_model_json_data, outfile)
+    except:
+        print(sys.exc_info()[0])
 
     print("Done.")
+
+    return generator_model
+

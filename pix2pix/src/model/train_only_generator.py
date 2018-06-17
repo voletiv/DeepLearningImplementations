@@ -86,6 +86,7 @@ def train(**kwargs):
     label_flipping_prob = kwargs["label_flipping_prob"]
     use_l1_weighted_loss = kwargs["use_l1_weighted_loss"]
     prev_model = kwargs["prev_model"]
+    change_model_name_to_prev_model = kwargs["change_model_name_to_prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
     n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     load_all_data_at_once = kwargs["load_all_data_at_once"]
@@ -135,10 +136,12 @@ def train(**kwargs):
 
     if prev_model:
         print('\n\nLoading prev_model from', prev_model, '...\n\n')
-        prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*.h5')))[-1]
+        prev_model_latest_gen = sorted(glob.glob(os.path.join('../../models/', prev_model, '*gen*epoch*.h5')))[-1]
+        print(prev_model_latest_gen)
         # Find prev model name, epoch
-        model_name = prev_model_latest_gen.split('models')[-1].split('/')[1]
-        init_epoch = int(prev_model_latest_gen.split('epoch')[1][:5]) + 1
+        if change_model_name_to_prev_model:
+            model_name = prev_model_latest_gen.split('models')[-1].split('/')[1]
+            init_epoch = int(prev_model_latest_gen.split('epoch')[1][:5]) + 1
 
     # img_dim = X_target_train.shape[-3:]
     img_dim = (256, 256, 3)
@@ -287,4 +290,6 @@ def train(**kwargs):
         json.dump(generator_model_json_data, outfile)
 
     print("Done.")
+
+    return generator_model
 
