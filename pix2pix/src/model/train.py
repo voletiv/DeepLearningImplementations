@@ -93,6 +93,7 @@ def train(**kwargs):
     n_run_of_gen_for_1_run_of_disc = kwargs["n_run_of_gen_for_1_run_of_disc"]
     load_all_data_at_once = kwargs["load_all_data_at_once"]
     MAX_FRAMES_PER_GIF = kwargs["MAX_FRAMES_PER_GIF"]
+    dont_train = kwargs["dont_train"]
 
     # batch_size = args.batch_size
     # n_batch_per_epoch = args.n_batch_per_epoch
@@ -228,6 +229,9 @@ def train(**kwargs):
             X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
 
         check_this_process_memory()
+
+        if dont_train:
+            raise KeyboardInterrupt
 
         # Setup environment (logging directory etc)
         general_utils.setup_logging(**kwargs)
@@ -365,7 +369,10 @@ def train(**kwargs):
             print('------------------------------------------------------------------------------------')
 
     except KeyboardInterrupt:
-        pass
+        if dont_train:
+            return generator_model
+        else:
+            pass
 
     # SAVE THE MODEL
 

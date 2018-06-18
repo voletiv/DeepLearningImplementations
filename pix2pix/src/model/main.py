@@ -65,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_run_of_gen_for_1_run_of_disc', default=1, type=int, help="After training disc on 1 batch, how many batches should gen train on")
     parser.add_argument('--load_all_data_at_once', action="store_true", help="To load full data all at once from a .h5 file")
     parser.add_argument('--MAX_FRAMES_PER_GIF', default=100, type=int, help="Max number of frames to be saved in each gif")
+    parser.add_argument('--dont_train', action="store_true", help="Only load generator, etc. using the options, and return the genrator_model. Don't train.")
 
     args = parser.parse_args()
     print(args)
@@ -126,7 +127,8 @@ if __name__ == "__main__":
                 "discriminator_optimizer": args.discriminator_optimizer,
                 "n_run_of_gen_for_1_run_of_disc": args.n_run_of_gen_for_1_run_of_disc,
                 "load_all_data_at_once" : args.load_all_data_at_once,
-                "MAX_FRAMES_PER_GIF": args.MAX_FRAMES_PER_GIF
+                "MAX_FRAMES_PER_GIF": args.MAX_FRAMES_PER_GIF,
+                "dont_train": args.dont_train
                 }
 
     # Launch training
