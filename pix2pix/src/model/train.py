@@ -106,6 +106,18 @@ def train(**kwargs):
     # dset = args.dset
     # use_mbd = False
 
+    if dont_train:
+        # Get the number of non overlapping patch and the size of input image to the discriminator
+        nb_patch, img_dim_disc = data_utils.get_nb_patch(img_dim, patch_size, image_data_format)
+        generator_model = models.load("generator_unet_%s" % generator_type,
+                                      img_dim,
+                                      nb_patch,
+                                      use_mbd,
+                                      batch_size,
+                                      model_name)
+        generator_model.compile(loss='mae', optimizer='adam')
+        return generator_model
+
     # Check and make the dataset
     # If .h5 file of dset is not present, try making it
     if load_all_data_at_once:
@@ -229,9 +241,6 @@ def train(**kwargs):
             X_batch_gen_val = data_utils.data_generator_from_dir(os.path.join(dset, 'val'), target_size=(img_dim[0], 2*img_dim[1]), batch_size=batch_size)
 
         check_this_process_memory()
-
-        if dont_train:
-            raise KeyboardInterrupt
 
         # Setup environment (logging directory etc)
         general_utils.setup_logging(**kwargs)
@@ -369,10 +378,7 @@ def train(**kwargs):
             print('------------------------------------------------------------------------------------')
 
     except KeyboardInterrupt:
-        if dont_train:
-            return generator_model
-        else:
-            pass
+        pass
 
     # SAVE THE MODEL
 
