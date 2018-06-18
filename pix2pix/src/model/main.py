@@ -58,6 +58,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_label_smoothing', action="store_true", help="Whether to smooth the positive labels when training D")
     parser.add_argument('--label_flipping_prob', default=0, type=float, help="Probability (0 to 1.) to flip the labels when training D")
     parser.add_argument('--use_l1_weighted_loss', action="store_true", help="Whether to use l1 loss additionally weighted by mouth position (default: False)")
+    parser.add_argument('--use_vgg_loss', action="store_true", help="Whether to use mse on vgg features")
+    parser.add_argument('--vgg_model', default='vgg16', type=str, choices=['vgg16', 'resnet50', 'senet50'], help="model of vgg to use among {'vgg16', 'resnet50', 'senet50'}")
+    parser.add_argument('--vgg_pooling', default='avg', type=str, choices=[None, 'avg', 'max'], help="pooling layer to be chosen among {None, 'avg', 'max'}")
     parser.add_argument('--train_only_generator', action="store_true", help="Whether to train only generator, instead of DCGAN (default: False)")
     parser.add_argument('--prev_model', default=None, type=str, help="model_name of previous model to load latest weights of")
     parser.add_argument('--change_model_name_to_prev_model', action="store_true", help="To change the model name to previous model")
@@ -121,6 +124,9 @@ if __name__ == "__main__":
                 "use_label_smoothing": args.use_label_smoothing,
                 "label_flipping_prob": args.label_flipping_prob,
                 "use_l1_weighted_loss": args.use_l1_weighted_loss,
+                "use_vgg_loss": args.use_vgg_loss,
+                "vgg_model": args.vgg_model,
+                "vgg_pooling": args.vgg_pooling,
                 "train_only_generator": args.train_only_generator,
                 "prev_model": args.prev_model,
                 "change_model_name_to_prev_model": args.change_model_name_to_prev_model,

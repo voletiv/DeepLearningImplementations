@@ -31,6 +31,26 @@ gaussian_overlap_tf = tf.convert_to_tensor(gaussian_overlap, dtype=tf.float32)
 gaussian_overlap_left_tf = tf.convert_to_tensor(np.hstack((gaussian_overlap, np.zeros((w, w)))), dtype=tf.float32)
 gaussian_overlap_right_tf = tf.convert_to_tensor(np.hstack((np.zeros((w, w)), gaussian_overlap)), dtype=tf.float32)
 
+vgg = None
+
+
+def load_vgg(model='vgg16', input_shape=(256, 256, 3), pooling='avg'):
+    global vgg
+    vgg = VGGFace(model=model, include_top=False, input_shape=input_shape, pooling=pooling)
+
+
+def vgg_l1_loss(y_true, y_pred):
+    vgg_loss = tf.mul(tf.ones(y_true.shape.as_list()[:-1]), K.mean(K.square(vgg(y_pred) - vgg(y_true)), axis=-1))
+    l1_loss = K.mean(K.abs(y_pred - y_true), axis=-1)
+    return vgg_loss + l1_loss
+
+
+def vgg_l1_weighted_loss(y_true, y_pred):
+    vgg_loss = tf.mul(tf.ones(y_true.shape.as_list()[:-1]), K.mean(K.square(vgg(y_pred) - vgg(y_true)), axis=-1))
+    l1_loss = K.mean(K.abs(y_pred - y_true), axis=-1)
+    l1_weighted_loss = l1_loss + tf.multiply(l1_loss, gaussian_overlap_tf)
+    return vgg_loss + l1_weighted_loss
+
 
 def l1_weighted_identity_loss(y_true, y_pred):
     l1_loss = K.mean(K.abs(y_pred - y_true), axis=-1)
@@ -85,6 +105,9 @@ def train(**kwargs):
     label_smoothing = kwargs["use_label_smoothing"]
     label_flipping_prob = kwargs["label_flipping_prob"]
     use_l1_weighted_loss = kwargs["use_l1_weighted_loss"]
+    use_vgg_loss = kwargs["use_vgg_loss"]
+    vgg_model = kwargs["vgg_model"]
+    vgg_pooling = kqargs["vgg_pooling"]
     prev_model = kwargs["prev_model"]
     change_model_name_to_prev_model = kwargs["change_model_name_to_prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
@@ -184,12 +207,23 @@ def train(**kwargs):
                                       batch_size,
                                       model_name)
 
-        if use_l1_weighted_loss and use_identity_image:
-            loss = l1_weighted_identity_loss
-        elif use_l1_weighted_loss and not use_identity_image:
-            loss = l1_weighted_loss
+        if use_vgg_loss:
+            load_vgg(model=vgg_model, input_shape=gen_input_img_dim, pooling=vgg_pooling)
+            if use_l1_weighted_loss and use_identity_image:
+                loss = vgg_l1_weighted_identity_loss
+            elif use_l1_weighted_loss and not use_identity_image:
+                loss = vgg_l1_weighted_loss
+            elif not use_l1_weighted_loss and use_identity_image:
+                loss = vgg_l1_identity_loss
+            else:
+                loss = vgg_l1_loss
         else:
-            loss = l1_loss
+            if use_l1_weighted_loss and use_identity_image:
+                loss = l1_weighted_identity_loss
+            elif use_l1_weighted_loss and not use_identity_image:
+                loss = l1_weighted_loss
+            else:
+                loss = l1_loss
 
         generator_model.compile(loss=loss, optimizer=opt_generator)
 
