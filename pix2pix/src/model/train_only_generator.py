@@ -107,7 +107,7 @@ def train(**kwargs):
     use_l1_weighted_loss = kwargs["use_l1_weighted_loss"]
     use_vgg_loss = kwargs["use_vgg_loss"]
     vgg_model = kwargs["vgg_model"]
-    vgg_pooling = kqargs["vgg_pooling"]
+    vgg_pooling = kwargs["vgg_pooling"]
     prev_model = kwargs["prev_model"]
     change_model_name_to_prev_model = kwargs["change_model_name_to_prev_model"]
     discriminator_optimizer = kwargs["discriminator_optimizer"]
