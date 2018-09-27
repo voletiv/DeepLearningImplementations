@@ -35,7 +35,7 @@ def create_dir(dirs):
 
 
 def setup_logging(**kwargs):
-    
+
     model_name = kwargs["model_name"]
 
     # Output path where we store experiment log and weights
