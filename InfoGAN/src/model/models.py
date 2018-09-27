@@ -25,9 +25,16 @@ def generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, model_name="gene
     if dset == "mnist":
         start_dim = int(s / 4)
         nb_upconv = 2
-    else:
+    elif dset == "celebA":
         start_dim = int(s / 16)
         nb_upconv = 4
+    else:
+        o = s
+        nb_upconv = 0
+        while o > 7:
+            o = o/2
+            nb_upconv += 1
+        start_dim = int(o)
 
     if K.image_dim_ordering() == "th":
         bn_axis = 1

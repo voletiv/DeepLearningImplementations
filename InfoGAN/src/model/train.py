@@ -50,6 +50,9 @@ def train(**kwargs):
     noise_scale = kwargs["noise_scale"]
     dset = kwargs["dset"]
     use_mbd = kwargs["use_mbd"]
+    load_from_dir = kwargs["load_from_dir"]
+    target_size = kwargs["target_size"]
+    save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     epoch_size = n_batch_per_epoch * batch_size
 
     # Setup environment (logging directory etc)
@@ -60,6 +63,9 @@ def train(**kwargs):
         X_real_train = data_utils.load_celebA(img_dim, image_data_format)
     elif dset == "mnist":
         X_real_train, _, _, _ = data_utils.load_mnist(image_data_format)
+    else:
+        X_batch_gen = data_utils.data_generator_from_dir(dset, target_size, batch_size)
+        X_real_train = next(X_batch_gen)
     img_dim = X_real_train.shape[-3:]
 
     try:
@@ -108,7 +114,8 @@ def train(**kwargs):
         gen_loss = 100
         disc_loss = 100
 
-        X_batch_gen = data_utils.gen_batch(X_real_train, batch_size)
+        if not load_from_dir:
+            X_batch_gen = data_utils.gen_batch(X_real_train, batch_size)
 
         # Start training
         print("Start training")
@@ -163,12 +170,13 @@ def train(**kwargs):
                 # Save images for visualization
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     data_utils.plot_generated_batch(X_real_batch, generator_model,
-                                                    batch_size, cat_dim, cont_dim, noise_dim, image_data_format)
+                                                    batch_size, cat_dim, cont_dim, noise_dim,
+                                                    image_data_format, model_name)
 
             print("")
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
 
-            if e % 5 == 0:
+            if e % save_weights_every_n_epochs == 0:
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%s.h5' % (model_name, e))
                 generator_model.save_weights(gen_weights_path, overwrite=True)
 

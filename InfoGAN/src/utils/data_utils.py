@@ -1,9 +1,12 @@
 from keras.datasets import mnist
 from keras.utils import np_utils
 import numpy as np
+import os
 import h5py
 
 import matplotlib.pylab as plt
+
+from keras.preprocessing.image import ImageDataGenerator
 
 
 def normalization(X):
@@ -11,7 +14,7 @@ def normalization(X):
 
 
 def inverse_normalization(X):
-    return (X + 1.) / 2.
+    return np.round((X + 1.) / 2. * 255.).astype('uint8')
 
 
 def load_mnist(image_data_format):
@@ -72,7 +75,7 @@ def data_generator_from_dir(data_dir, target_size, batch_size):
         raise ValueError("ERROR: # of images in " + str(data_dir) + " found by keras.ImageDataGenerator is not a multiple of the batch_size ( " + str(batch_size) + " )!\nFound " + str(number_of_images) + " images. Add " + str(batch_size - number_of_images % batch_size) + " more image(s), or delete " + str(number_of_images % batch_size) + " image(s).")
 
     # datagens
-    data_generator_args = {}
+    data_generator_args = dict(preprocessing_function=normalization)
     image_datagen = ImageDataGenerator(**data_generator_args)
 
     # Image generators
@@ -119,9 +122,9 @@ def get_disc_batch(X_real_batch, generator_model, batch_counter, batch_size, cat
 
     else:
         X_disc = X_real_batch
-        y_disc = np.zeros((X_disc.shape[0], 2), dtype=np.uint8)
         y_cat = sample_cat(batch_size, cat_dim)
         y_cont = sample_noise(noise_scale, batch_size, cont_dim)
+        y_disc = np.zeros((X_disc.shape[0], 2), dtype=np.uint8)
         if label_smoothing:
             y_disc[:, 1] = np.random.uniform(low=0.9, high=1, size=y_disc.shape[0])
         else:
@@ -155,7 +158,8 @@ def get_gen_batch(batch_size, cat_dim, cont_dim, noise_dim, noise_scale=0.5):
     return X_gen, y_gen, y_cat, y_cont, y_cont_target
 
 
-def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim, noise_dim, image_data_format, noise_scale=0.5):
+def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim, noise_dim, image_data_format, model_name,
+                         noise_scale=0.5):
 
     # Generate images
     y_cat = sample_cat(batch_size, cat_dim)
@@ -193,6 +197,6 @@ def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim,
         plt.imshow(Xr[:, :, 0], cmap="gray")
     else:
         plt.imshow(Xr)
-    plt.savefig("../../figures/current_batch.png")
+    plt.savefig(os.path.join("../../figures", model_name, "current_batch.png"))
     plt.clf()
     plt.close()

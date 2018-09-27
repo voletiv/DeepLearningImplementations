@@ -79,7 +79,7 @@ def eval(**kwargs):
     plt.annotate('', xy=(-0.05, 0), xycoords='axes fraction', xytext=(-0.05, 1),
                  arrowprops=dict(arrowstyle="-|>", color='k', linewidth=4))
     plt.tight_layout()
-    plt.savefig("../../figures/varying_categorical.png")
+    plt.savefig(os.path.join("../../figures", model_name, "varying_categorical.png"))
     plt.clf()
     plt.close()
 
@@ -117,6 +117,6 @@ def eval(**kwargs):
     plt.annotate('', xy=(1, -0.05), xycoords='axes fraction', xytext=(0, -0.05),
                  arrowprops=dict(arrowstyle="-|>", color='k', linewidth=4))
     plt.tight_layout()
-    plt.savefig("../../figures/varying_continuous.png")
+    plt.savefig(os.path.join("../../figures", model_name, "varying_continuous.png"))
     plt.clf()
     plt.close()
