@@ -1,5 +1,6 @@
 import os
 import argparse
+import datetime
 
 
 def launch_training(**kwargs):
@@ -27,7 +28,6 @@ if __name__ == "__main__":
     parser.add_argument('--epoch', default=10, type=int, help="Epoch at which weights were saved for evaluation")
     parser.add_argument('--nb_classes', default=2, type=int, help="Number of classes")
     parser.add_argument('--do_plot', default=False, type=bool, help="Debugging plot")
-    parser.add_argument('--bn_mode', default=2, type=int, help="Batch norm mode")
     parser.add_argument('--img_dim', default=64, type=int, help="Image width == height (only specify for CelebA)")
     parser.add_argument('--noise_dim', default=64, type=int, help="noise dimension")
     parser.add_argument('--cont_dim', default=2, type=int, help="Latent continuous dimensions")
@@ -64,18 +64,19 @@ if __name__ == "__main__":
     import train
     import eval
 
+    model_name = "InfoGAN_{:%Y%m%d_%H%M%S}".format(datetime.datetime.now())
+
     # Set default params
     d_params = {"dset": args.dset,
                 "generator": args.generator,
                 "batch_size": args.batch_size,
                 "n_batch_per_epoch": args.n_batch_per_epoch,
                 "nb_epoch": args.nb_epoch,
-                "model_name": "InfoGAN",
+                "model_name": model_name,
                 "epoch": args.epoch,
                 "nb_classes": args.nb_classes,
                 "do_plot": args.do_plot,
                 "image_data_format": image_data_format,
-                "bn_mode": args.bn_mode,
                 "img_dim": args.img_dim,
                 "noise_dim": args.noise_dim,
                 "cat_dim": args.cat_dim,

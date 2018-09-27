@@ -1,14 +1,15 @@
 from keras.models import Model
 from keras.layers.core import Flatten, Dense, Dropout, Activation, Lambda, Reshape
 from keras.layers.convolutional import Conv2D, Deconv2D, ZeroPadding2D, UpSampling2D
-from keras.layers import Input, merge
+# from keras.layers import Input, merge
+from keras.layers import Input, Concatenate
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
 from keras.layers.pooling import MaxPooling2D
 import keras.backend as K
 
 
-def generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, model_name="generator_upsampling", dset="mnist"):
+def generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, model_name="generator_upsampling", dset="mnist"):
     """
     Generator model of the DCGAN
 
@@ -41,7 +42,8 @@ def generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, model_n
     cont_input = Input(shape=cont_dim, name="cont_input")
     noise_input = Input(shape=noise_dim, name="noise_input")
 
-    gen_input = merge([cat_input, cont_input, noise_input], mode="concat")
+    # gen_input = merge([cat_input, cont_input, noise_input], mode="concat")
+    gen_input = Concatenate()([noise_input, cont_input, cat_input])
 
     x = Dense(1024)(gen_input)
     x = BatchNormalization()(x)
@@ -71,7 +73,7 @@ def generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, model_n
     return generator_model
 
 
-def generator_deconv(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, batch_size, model_name="generator_deconv", dset="mnist"):
+def generator_deconv(cat_dim, cont_dim, noise_dim, img_dim, batch_size, model_name="generator_deconv", dset="mnist"):
     """
     Generator model of the DCGAN
 
@@ -102,7 +104,8 @@ def generator_deconv(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, batch_size,
     cont_input = Input(shape=cont_dim, name="cont_input")
     noise_input = Input(shape=noise_dim, name="noise_input")
 
-    gen_input = merge([cat_input, cont_input, noise_input], mode="concat")
+    # gen_input = merge([cat_input, cont_input, noise_input], mode="concat")
+    gen_input = Concatenate()([noise_input, cont_input, cat_input])
 
     x = Dense(1024)(gen_input)
     x = BatchNormalization()(x)
@@ -134,7 +137,7 @@ def generator_deconv(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, batch_size,
     return generator_model
 
 
-def DCGAN_discriminator(cat_dim, cont_dim, img_dim, bn_mode, model_name="DCGAN_discriminator", dset="mnist", use_mbd=False):
+def DCGAN_discriminator(cat_dim, cont_dim, img_dim, model_name="DCGAN_discriminator", dset="mnist", use_mbd=False):
     """
     Discriminator model of the DCGAN
 
@@ -190,7 +193,8 @@ def DCGAN_discriminator(cat_dim, cont_dim, img_dim, bn_mode, model_name="DCGAN_d
     # Reshape Q to nbatch, 1, cont_dim[0]
     x_Q_C_mean = Reshape((1, cont_dim[0]))(x_Q_C_mean)
     x_Q_C_logstd = Reshape((1, cont_dim[0]))(x_Q_C_logstd)
-    x_Q_C = merge([x_Q_C_mean, x_Q_C_logstd], mode="concat", name="Q_cont_out", concat_axis=1)
+    # x_Q_C = merge([x_Q_C_mean, x_Q_C_logstd], mode="concat", name="Q_cont_out", concat_axis=1)
+    x_Q_C = Concatenate(name="Q_cont_out", axis=1)([x_Q_C_mean, x_Q_C_logstd])
 
     def minb_disc(z):
         diffs = K.expand_dims(z, 3) - K.expand_dims(K.permute_dimensions(z, [1, 2, 0]), 0)
@@ -213,6 +217,7 @@ def DCGAN_discriminator(cat_dim, cont_dim, img_dim, bn_mode, model_name="DCGAN_d
         x_mbd = Reshape((num_kernels, dim_per_kernel))(x_mbd)
         x_mbd = MBD(x_mbd)
         x = merge([x, x_mbd], mode='concat')
+        x = Concatenate()([x, x_mbd])
 
     # Create discriminator model
     x_disc = Dense(2, activation='softmax', name="disc_out")(x)
@@ -237,23 +242,23 @@ def DCGAN(generator, discriminator_model, cat_dim, cont_dim, noise_dim):
     return DCGAN
 
 
-def load(model_name, cat_dim, cont_dim, noise_dim, img_dim, bn_mode, batch_size, dset="mnist", use_mbd=False):
+def load(model_name, cat_dim, cont_dim, noise_dim, img_dim, batch_size, dset="mnist", use_mbd=False):
 
     if model_name == "generator_upsampling":
-        model = generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, bn_mode, model_name=model_name, dset=dset)
+        model = generator_upsampling(cat_dim, cont_dim, noise_dim, img_dim, model_name=model_name, dset=dset)
         model.summary()
         from keras.utils import plot_model
         plot_model(model, to_file='../../figures/%s.png' % model_name, show_shapes=True, show_layer_names=True)
         return model
     if model_name == "generator_deconv":
-        model = generator_deconv(cat_dim, cont_dim, noise_dim, img_dim, bn_mode,
+        model = generator_deconv(cat_dim, cont_dim, noise_dim, img_dim,
                                  batch_size, model_name=model_name, dset=dset)
         model.summary()
         from keras.utils import plot_model
         plot_model(model, to_file='../../figures/%s.png' % model_name, show_shapes=True, show_layer_names=True)
         return model
     if model_name == "DCGAN_discriminator":
-        model = DCGAN_discriminator(cat_dim, cont_dim, img_dim, bn_mode,
+        model = DCGAN_discriminator(cat_dim, cont_dim, img_dim,
                                     model_name=model_name, dset=dset, use_mbd=use_mbd)
         model.summary()
         from keras.utils import plot_model

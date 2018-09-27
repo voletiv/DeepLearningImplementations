@@ -7,12 +7,10 @@ import matplotlib.pylab as plt
 
 
 def normalization(X):
-
     return X / 127.5 - 1
 
 
 def inverse_normalization(X):
-
     return (X + 1.) / 2.
 
 
@@ -61,6 +59,29 @@ def gen_batch(X, batch_size):
     while True:
         idx = np.random.choice(X.shape[0], batch_size, replace=False)
         yield X[idx]
+
+
+def data_generator_from_dir(data_dir, target_size, batch_size):
+
+    # data_gen args
+    print("Loading data from", data_dir)
+
+    # Check if number of files in data_dir is a multiple of batch_size
+    number_of_images = sum([len(files) for r, d, files in os.walk(data_dir)])
+    if number_of_images % batch_size != 0:
+        raise ValueError("ERROR: # of images in " + str(data_dir) + " found by keras.ImageDataGenerator is not a multiple of the batch_size ( " + str(batch_size) + " )!\nFound " + str(number_of_images) + " images. Add " + str(batch_size - number_of_images % batch_size) + " more image(s), or delete " + str(number_of_images % batch_size) + " image(s).")
+
+    # datagens
+    data_generator_args = {}
+    image_datagen = ImageDataGenerator(**data_generator_args)
+
+    # Image generators
+    image_data_generator = image_datagen.flow_from_directory(data_dir, target_size=target_size, batch_size=batch_size, class_mode=None, seed=29)
+
+    if len(image_data_generator) == 0:
+        raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)
+
+    return image_data_generator
 
 
 def sample_noise(noise_scale, batch_size, noise_dim):

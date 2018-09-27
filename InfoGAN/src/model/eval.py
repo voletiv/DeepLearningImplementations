@@ -25,7 +25,7 @@ def eval(**kwargs):
     epoch = kwargs["epoch"]
 
     # Setup environment (logging directory etc)
-    general_utils.setup_logging(model_name)
+    general_utils.setup_logging(**kwargs)
 
     # Load and rescale data
     if dset == "RGZ":

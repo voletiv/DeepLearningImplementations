@@ -45,7 +45,6 @@ def train(**kwargs):
     cont_dim = (kwargs["cont_dim"],)
     cat_dim = (kwargs["cat_dim"],)
     noise_dim = (kwargs["noise_dim"],)
-    bn_mode = kwargs["bn_mode"]
     label_smoothing = kwargs["label_smoothing"]
     label_flipping = kwargs["label_flipping"]
     noise_scale = kwargs["noise_scale"]
@@ -54,12 +53,12 @@ def train(**kwargs):
     epoch_size = n_batch_per_epoch * batch_size
 
     # Setup environment (logging directory etc)
-    general_utils.setup_logging(model_name)
+    general_utils.setup_logging(**kwargs)
 
     # Load and rescale data
     if dset == "celebA":
         X_real_train = data_utils.load_celebA(img_dim, image_data_format)
-    if dset == "mnist":
+    elif dset == "mnist":
         X_real_train, _, _, _ = data_utils.load_mnist(image_data_format)
     img_dim = X_real_train.shape[-3:]
 
@@ -76,7 +75,6 @@ def train(**kwargs):
                                       cont_dim,
                                       noise_dim,
                                       img_dim,
-                                      bn_mode,
                                       batch_size,
                                       dset=dset,
                                       use_mbd=use_mbd)
@@ -86,7 +84,6 @@ def train(**kwargs):
                                           cont_dim,
                                           noise_dim,
                                           img_dim,
-                                          bn_mode,
                                           batch_size,
                                           dset=dset,
                                           use_mbd=use_mbd)
@@ -111,6 +108,8 @@ def train(**kwargs):
         gen_loss = 100
         disc_loss = 100
 
+        X_batch_gen = data_utils.gen_batch(X_real_train, batch_size)
+
         # Start training
         print("Start training")
         for e in range(nb_epoch):
@@ -119,7 +118,10 @@ def train(**kwargs):
             batch_counter = 1
             start = time.time()
 
-            for X_real_batch in data_utils.gen_batch(X_real_train, batch_size):
+            for batch_counter in range(n_batch_per_epoch):
+
+                # Load data
+                X_real_batch = next(X_batch_gen)
 
                 # Create a batch to feed the discriminator model
                 X_disc, y_disc, y_cat, y_cont = data_utils.get_disc_batch(X_real_batch,
@@ -149,7 +151,6 @@ def train(**kwargs):
                 # Unfreeze the discriminator
                 discriminator_model.trainable = True
 
-                batch_counter += 1
                 progbar.add(batch_size, values=[("D tot", disc_loss[0]),
                                                 ("D log", disc_loss[1]),
                                                 ("D cat", disc_loss[2]),
@@ -163,9 +164,6 @@ def train(**kwargs):
                 if batch_counter % (n_batch_per_epoch / 2) == 0:
                     data_utils.plot_generated_batch(X_real_batch, generator_model,
                                                     batch_size, cat_dim, cont_dim, noise_dim, image_data_format)
-
-                if batch_counter >= n_batch_per_epoch:
-                    break
 
             print("")
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
