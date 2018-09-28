@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument('--generator', type=str, default="upsampling", help="upsampling or deconv")
     parser.add_argument('--dset', type=str, default="mnist", help="mnist or celebA, or path to images of dataset")
     parser.add_argument('--dont_load_from_dir', action="store_true", help="Whether to load images from dir for every batch")
-    parser.add_argument('--target_size', default=256, type=int, help="Target_size to resize every image")
+    parser.add_argument('--target_size', default=32, type=int, help="Target_size to resize every image")
     parser.add_argument('--batch_size', default=8, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=25, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=2000, type=int, help="Number of batches per epoch")

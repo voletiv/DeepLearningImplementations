@@ -160,6 +160,27 @@ def get_gen_batch(batch_size, cat_dim, cont_dim, noise_dim, noise_scale=0.5):
     return X_gen, y_gen, y_cat, y_cont, y_cont_target
 
 
+def plot_losses(disc_total_losses, disc_log_losses, disc_cat_losses, disc_cont_losses,
+                gen_total_losses, gen_log_losses, gen_cat_losses, gen_cont_losses,
+                model_name, init_epoch=0):
+    epochs = np.arange(len(disc_total_losses)) + init_epoch
+    fig = plt.figure()
+    plt.plot(epochs, disc_total_losses, linewidth=2, label='disc_total_loss')
+    plt.plot(epochs, disc_log_losses, linewidth=1, label='disc_log_loss')
+    plt.plot(epochs, disc_cat_losses, linewidth=1, label='disc_cat_loss')
+    plt.plot(epochs, disc_cont_losses, linewidth=1, label='disc_cont_loss')
+    plt.plot(epochs, gen_total_losses, linewidth=2, label='gen_total_loss')
+    plt.plot(epochs, gen_log_losses, linewidth=1, label='gen_log_loss')
+    plt.plot(epochs, gen_cat_losses, linewidth=1, label='gen_cat_loss')
+    plt.plot(epochs, gen_cont_losses, linewidth=1, label='gen_cont_loss')
+    plt.legend()
+    plt.title("Losses")
+    plt.xlabel("Epochs")
+    plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"), bbox_inches='tight')
+    plt.clf()
+    plt.close()
+
+
 def plot_generated_batch(X_real, generator_model, epoch_number,
                          batch_size, cat_dim, cont_dim, noise_dim,
                          image_data_format, model_name,

@@ -125,15 +125,34 @@ def train(**kwargs):
         # Start training
         print("Start training")
 
+        disc_total_losses = []
+        disc_log_losses = []
+        disc_cat_losses = []
+        disc_cont_losses = []
+        gen_total_losses = []
+        gen_log_losses = []
+        gen_cat_losses = []
+        gen_cont_losses = []
+
         start = time.time()
+
         for e in range(nb_epoch):
 
             print('--------------------------------------------')
-            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d}\n' % (datetime.datetime.now(), e + 1, nb_epoch))
+            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d}\n'.format(datetime.datetime.now(), e + 1, nb_epoch))
 
             # Initialize progbar and batch counter
             progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 1
+
+            disc_total_loss_batch = 0
+            disc_log_loss_batch = 0
+            disc_cat_loss_batch = 0
+            disc_cont_loss_batch = 0
+            gen_total_loss_batch = 0
+            gen_log_loss_batch = 0
+            gen_cat_loss_batch = 0
+            gen_cont_loss_batch = 0
 
             for batch_counter in range(n_batch_per_epoch):
 
@@ -177,18 +196,39 @@ def train(**kwargs):
                                                 ("G cat", gen_loss[2]),
                                                 ("G cont", gen_loss[3])])
 
+                disc_total_loss_batch += disc_loss[0]
+                disc_log_loss_batch += disc_loss[1]
+                disc_cat_loss_batch += disc_loss[2]
+                disc_cont_loss_batch += disc_loss[3]
+                gen_total_loss_batch += gen_loss[0]
+                gen_log_loss_batch += gen_loss[1]
+                gen_cat_loss_batch += gen_loss[2]
+                gen_cont_loss_batch += gen_loss[3]
+
                 # # Save images for visualization
                 # if batch_counter % (n_batch_per_epoch / 2) == 0:
                 #     data_utils.plot_generated_batch(X_real_batch, generator_model, e,
                 #                                     batch_size, cat_dim, cont_dim, noise_dim,
                 #                                     image_data_format, model_name)
 
+            disc_total_losses.append(disc_total_loss_batch/n_batch_per_epoch)
+            disc_log_losses.append(disc_log_loss_batch/n_batch_per_epoch)
+            disc_cat_losses.append(disc_cat_loss_batch/n_batch_per_epoch)
+            disc_cont_losses.append(disc_cont_loss_batch/n_batch_per_epoch)
+            gen_total_losses.append(gen_total_loss_batch/n_batch_per_epoch)
+            gen_log_losses.append(gen_log_loss_batch/n_batch_per_epoch)
+            gen_cat_losses.append(gen_cat_loss_batch/n_batch_per_epoch)
+            gen_cont_losses.append(gen_cont_loss_batch/n_batch_per_epoch)
+
             # Save images for visualization
             if (e + 1) % visualize_images_every_n_epochs == 0:
                 data_utils.plot_generated_batch(X_real_batch, generator_model, e, batch_size,
-                                                cat_dim, cont_dim, noise_dim, image_data_format, model_name,)
+                                                cat_dim, cont_dim, noise_dim, image_data_format, model_name)
+                data_utils.plot_losses(disc_total_losses, disc_log_losses, disc_cat_losses, disc_cont_losses,
+                                       gen_total_losses, gen_log_losses, gen_cat_losses, gen_cont_losses,
+                                       model_name)
 
-            if e % save_weights_every_n_epochs == 0:
+            if (e + 1) % save_weights_every_n_epochs == 0:
 
                 print("Saving weights...")
 
