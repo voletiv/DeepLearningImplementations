@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument('--img_dim', default=64, type=int, help="Image width == height")
     parser.add_argument('--nb_epoch', default=2000, type=int, help="Number of epochs")
     parser.add_argument('--batch_size', default=8, type=int, help='Batch size')
-    parser.add_argument('--n_batch_per_epoch', default=1, type=int, help="Number of batch per epochs")
+    parser.add_argument('--n_batch_per_epoch', default=25, type=int, help="Number of batch per epochs")
     parser.add_argument('--noise_dim', default=100, type=int, help="noise sampler dimension")
     parser.add_argument('--noise_scale', default=0.5, type=float, help="noise sampler variance")
     parser.add_argument('--disc_iterations', default=5, type=int, help="Number of discriminator iterations")
@@ -33,9 +33,9 @@ if __name__ == "__main__":
     parser.add_argument('--lr_D', type=float, default=5E-5, help="learning rate for the discriminator")
     parser.add_argument('--lr_G', type=float, default=5E-5, help="learning rate for the generator")
     parser.add_argument('--use_mbd', action="store_true", help="use mini batch disc")
-    parser.add_argument('--save_weights_every_n_epochs', default=1, type=int, help="Choose freq of saving weights")
+    parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Choose freq of saving weights")
     parser.add_argument('--save_only_last_n_weights', default=5, type=int, help="Choose number of weights to keep")
-    parser.add_argument('--visualize_images_every_n_epochs', default=1, type=int, help="Choose freq of epochs to plot")
+    parser.add_argument('--visualize_images_every_n_epochs', default=10, type=int, help="Choose freq of epochs to plot")
 
     args = parser.parse_args()
 
