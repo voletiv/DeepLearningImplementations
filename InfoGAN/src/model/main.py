@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 "n_batch_per_epoch": args.n_batch_per_epoch,
                 "nb_epoch": args.nb_epoch,
                 "model_name": model_name,
-                "eval_epoch": args.epoch,
+                "eval_epoch": args.eval_epoch,
                 "do_plot": args.do_plot,
                 "image_data_format": image_data_format,
                 "celebA_img_dim": args.celebA_img_dim,

@@ -182,7 +182,7 @@ def train(**kwargs):
 
             if e % save_weights_every_n_epochs == 0:
                 # Delete all but the last n weights
-                purge_weights(save_only_last_n_weights, model_name)
+                general_utils.purge_weights(save_only_last_n_weights, model_name)
 
                 # Save weights
                 gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d.h5' % (model_name, e))
