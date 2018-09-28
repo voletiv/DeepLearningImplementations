@@ -10,9 +10,10 @@ import os
 from scipy import stats
 from keras.datasets import mnist, cifar10
 from keras.optimizers import Adam, SGD, RMSprop
+from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import np_utils
 
-def normalization(X, image_data_format):
+def normalization(X, image_data_format="channels_last"):
 
     X = X / 255.
     if image_data_format == "channels_last":
@@ -102,13 +103,13 @@ def load_image_dataset(dset, img_dim, image_data_format, batch_size):
     elif dset == "cifar10":
         X_real_train, _, _, _ = load_cifar10(image_data_format)
     else:
-        X_batch_gen = data_generator_from_dir(dset, img_dim, batch_size)
+        X_batch_gen = data_generator_from_dir(dset, (img_dim, img_dim), batch_size, image_data_format)
         X_real_train = next(X_batch_gen)
 
     return X_real_train, X_batch_gen
 
 
-def data_generator_from_dir(data_dir, target_size, batch_size):
+def data_generator_from_dir(data_dir, target_size, batch_size, image_data_format="channels_last"):
 
     # data_gen args
     print("Loading data from", data_dir)

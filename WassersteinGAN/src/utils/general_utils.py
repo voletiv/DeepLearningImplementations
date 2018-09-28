@@ -47,8 +47,8 @@ def setup_logging(**kwargs):
 
     # Copy main.py, train.py and model.py
     subprocess.call(['cp', 'main.py', model_dir])
-    subprocess.call(['cp', 'models.py', model_dir])
-    subprocess.call(['cp', 'train.py', model_dir])
+    subprocess.call(['cp', 'models_WGAN.py', model_dir])
+    subprocess.call(['cp', 'train_WGAN.py', model_dir])
 
     # Write all config params
     print("Writing config params in", os.path.join(model_dir, 'config.txt'))
