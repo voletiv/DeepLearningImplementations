@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 
 def remove_files(files):
@@ -32,14 +33,30 @@ def create_dir(dirs):
         if not os.path.exists(os.path.expanduser(dirs)):
             os.makedirs(dirs)
 
+def setup_logging(**kwargs):
 
-def setup_logging(model_name):
+    model_name = kwargs["model_name"]
 
-    model_dir = "../../models"
     # Output path where we store experiment log and weights
-    model_dir = os.path.join(model_dir, model_name)
-
-    fig_dir = "../../figures"
+    model_dir = os.path.join("../../models", model_name)
+    fig_dir = os.path.join("../../figures", model_name)
 
     # Create if it does not exist
+    print("Creating", model_dir, "and", fig_dir)
     create_dir([model_dir, fig_dir])
+
+    # Copy main.py, train.py and model.py
+    subprocess.call(['cp', 'main.py', model_dir])
+    subprocess.call(['cp', 'models.py', model_dir])
+    subprocess.call(['cp', 'train.py', model_dir])
+
+    # Write all config params
+    print("Writing config params in", os.path.join(model_dir, 'config.txt'))
+    with open(os.path.join(model_dir, 'config.txt'), 'w') as f:
+        for i in kwargs:
+            f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
+
+    print("Writing config params in", os.path.join(fig_dir, 'config.txt'))
+    with open(os.path.join(fig_dir, 'config.txt'), 'w') as f:
+        for i in kwargs:
+            f.write(str(i) + ' ' + str(kwargs[i]) + '\n')

@@ -81,13 +81,12 @@ def GAN_toy(generator, discriminator, noise_dim):
     return GAN_toy
 
 
-def generator_upsampling(noise_dim, img_dim, bn_mode, model_name="generator_upsampling", dset="mnist"):
+def generator_upsampling(noise_dim, img_dim, model_name="generator_upsampling", dset="mnist"):
     """DCGAN generator based on Upsampling and Conv2D
 
     Args:
         noise_dim: Dimension of the noise input
         img_dim: dimension of the image output
-        bn_mode: keras batchnorm mode
         model_name: model name (default: {"generator_upsampling"})
         dset: dataset (default: {"mnist"})
 
@@ -142,13 +141,12 @@ def generator_upsampling(noise_dim, img_dim, bn_mode, model_name="generator_upsa
     return generator_model
 
 
-def generator_deconv(noise_dim, img_dim, bn_mode, batch_size, model_name="generator_deconv", dset="mnist"):
+def generator_deconv(noise_dim, img_dim, batch_size, model_name="generator_deconv", dset="mnist"):
     """DCGAN generator based on Deconv2D
 
     Args:
         noise_dim: Dimension of the noise input
         img_dim: dimension of the image output
-        bn_mode: keras batchnorm mode
         batch_size: needed to reshape after the deconv2D
         model_name: model name (default: {"generator_deconv"})
         dset: dataset (default: {"mnist"})
@@ -208,12 +206,11 @@ def generator_deconv(noise_dim, img_dim, bn_mode, batch_size, model_name="genera
     return generator_model
 
 
-def discriminator(img_dim, bn_mode, model_name="discriminator"):
+def discriminator(img_dim, model_name="discriminator"):
     """DCGAN discriminator
 
     Args:
         img_dim: dimension of the image output
-        bn_mode: keras batchnorm mode
         model_name: model name (default: {"generator_deconv"})
 
     Returns:

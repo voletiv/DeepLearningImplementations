@@ -1,13 +1,16 @@
-import os
+import cv2
+import glob
 import h5py
-import numpy as np
-from scipy import stats
-from keras.utils import np_utils
-from keras.datasets import mnist, cifar10
+import imageio
 import matplotlib.pylab as plt
 import matplotlib.gridspec as gridspec
-from keras.optimizers import Adam, SGD, RMSprop
+import numpy as np
+import os
 
+from scipy import stats
+from keras.datasets import mnist, cifar10
+from keras.optimizers import Adam, SGD, RMSprop
+from keras.utils import np_utils
 
 def normalization(X, image_data_format):
 
@@ -88,16 +91,44 @@ def load_celebA(img_dim, image_data_format):
         return X_real_train
 
 
-def load_image_dataset(dset, img_dim, image_data_format):
+def load_image_dataset(dset, img_dim, image_data_format, batch_size):
+
+    X_batch_gen = None
 
     if dset == "celebA":
         X_real_train = load_celebA(img_dim, image_data_format)
-    if dset == "mnist":
+    elif dset == "mnist":
         X_real_train, _, _, _ = load_mnist(image_data_format)
-    if dset == "cifar10":
+    elif dset == "cifar10":
         X_real_train, _, _, _ = load_cifar10(image_data_format)
+    else:
+        X_batch_gen = data_generator_from_dir(dset, img_dim, batch_size)
+        X_real_train = next(X_batch_gen)
 
-    return X_real_train
+    return X_real_train, X_batch_gen
+
+
+def data_generator_from_dir(data_dir, target_size, batch_size):
+
+    # data_gen args
+    print("Loading data from", data_dir)
+
+    # Check if number of files in data_dir is a multiple of batch_size
+    number_of_images = sum([len(files) for r, d, files in os.walk(data_dir)])
+    if number_of_images % batch_size != 0:
+        raise ValueError("ERROR: # of images in " + str(data_dir) + " found by keras.ImageDataGenerator is not a multiple of the batch_size ( " + str(batch_size) + " )!\nFound " + str(number_of_images) + " images. Add " + str(batch_size - number_of_images % batch_size) + " more image(s), or delete " + str(number_of_images % batch_size) + " image(s).")
+
+    # datagens
+    data_generator_args = dict(preprocessing_function=normalization)
+    image_datagen = ImageDataGenerator(**data_generator_args)
+
+    # Image generators
+    image_data_generator = image_datagen.flow_from_directory(data_dir, target_size=target_size, batch_size=batch_size, class_mode=None, seed=29)
+
+    if len(image_data_generator) == 0:
+        raise ValueError("ERROR: # of images found by keras.ImageDataGenerator is 0!\nPlease save the images in the data_dir into at least one modre directory, preferably into classes. Given data_dir:", data_dir)
+
+    return image_data_generator
 
 
 def load_toy(n_mixture=8, std=0.01, radius=1.0, pts_per_mixture=5000):
@@ -127,11 +158,14 @@ def get_optimizer(opt, lr):
         return Adam(lr=lr, beta1=0.5)
 
 
-def gen_batch(X, batch_size):
+def gen_batch(X, X_batch_gen, batch_size):
 
     while True:
-        idx = np.random.choice(X.shape[0], batch_size, replace=False)
-        yield X[idx]
+        if X_batch_gen is None:
+            idx = np.random.choice(X.shape[0], batch_size, replace=False)
+            yield X[idx]
+        else:
+            yield next(X_batch_gen)
 
 
 def sample_noise(noise_scale, batch_size, noise_dim):
@@ -150,22 +184,43 @@ def get_disc_batch(X_real_batch, generator_model, batch_counter, batch_size, noi
     return X_disc_real, X_disc_gen
 
 
-def save_model_weights(generator_model, discriminator_model, DCGAN_model, e):
+def save_model_weights(generator_model, discriminator_model, DCGAN_model, e,
+                       save_weights_every_n_epochs=5, save_only_last_n_weights=10, model_name="WGAN"):
 
-    model_path = "../../models/DCGAN"
+    purge_weights(generator_model, discriminator_model, DCGAN_model, save_only_last_n_weights, model_name)
 
-    if e % 5 == 0:
-        gen_weights_path = os.path.join(model_path, '%s_epoch%s.h5' % (generator_model.name, e))
+    model_path = os.path.join("../../models", model_name)
+
+    if (e + 1) % save_weights_every_n_epochs == 0:
+        print("Saving weight...")
+
+        gen_weights_path = os.path.join(model_path, '%s_epoch%5d.h5' % (generator_model.name, e))
         generator_model.save_weights(gen_weights_path, overwrite=True)
 
-        disc_weights_path = os.path.join(model_path, '%s_epoch%s.h5' % (discriminator_model.name, e))
+        disc_weights_path = os.path.join(model_path, '%s_epoch%5d.h5' % (discriminator_model.name, e))
         discriminator_model.save_weights(disc_weights_path, overwrite=True)
 
-        DCGAN_weights_path = os.path.join(model_path, '%s_epoch%s.h5' % (DCGAN_model.name, e))
+        DCGAN_weights_path = os.path.join(model_path, '%s_epoch%5d.h5' % (DCGAN_model.name, e))
         DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
 
 
-def plot_generated_batch(X_real, generator_model, batch_size, noise_dim, image_data_format, noise_scale=0.5):
+def purge_weights(generator_model, discriminator_model, DCGAN_model, n, model_name):
+    gen_weight_files = sorted(glob.glob('../../models/%s/%s*' % (model_name, generator_model.name)))
+    for gen_weight_file in gen_weight_files[:-n]:
+        os.remove(os.path.realpath(gen_weight_file))
+
+    disc_weight_files = sorted(glob.glob('../../models/%s/%s*' % (model_name, discriminator_model.name)))
+    for disc_weight_file in disc_weight_files[:-n]:
+        os.remove(os.path.realpath(disc_weight_file))
+
+    DCGAN_weight_files = sorted(glob.glob('../../models/%s/%s*' % (model_name, DCGAN_model.name)))
+    for DCGAN_weight_file in DCGAN_weight_files[:-n]:
+        os.remove(os.path.realpath(DCGAN_weight_file))
+
+
+def plot_generated_batch(X_real, generator_model, epoch_number, batch_size,
+                         noise_dim, image_data_format, model_name,
+                         noise_scale=0.5, suffix='training', MAX_FRAMES_PER_GIF=100):
 
     # Generate images
     X_gen = sample_noise(noise_scale, batch_size, noise_dim)
@@ -196,11 +251,64 @@ def plot_generated_batch(X_real, generator_model, batch_size, noise_dim, image_d
         Xr = np.concatenate(list_rows, axis=1)
         Xr = Xr.transpose(1,2,0)
 
-    if Xr.shape[-1] == 1:
-        plt.imshow(Xr[:, :, 0], cmap="gray")
-    else:
-        plt.imshow(Xr)
-    plt.savefig("../../figures/current_batch.png")
+    # Make iter text
+    text_image = cv2.putText(np.zeros((32, Xr.shape[1], Xr.shape[2])),
+                             '%s epoch' % str(epoch_number), (10, 10), cv2.FONT_HERSHEY_SIMPLEX, .4, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+
+    image = np.vstack((text_image, Xr))
+
+    # if Xr.shape[-1] == 1:
+    #     plt.imshow(Xr[:, :, 0], cmap="gray")
+    # else:
+    #     plt.imshow(Xr)
+    # plt.savefig("../../figures/current_batch.png")
+    # plt.clf()
+    # plt.close()
+
+    imageio.imsave(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix), image)
+
+    # Make gif
+    gif_frames = []
+
+    # Read old gif frames
+    try:
+        gif_frames_reader = imageio.get_reader(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
+        for frame in gif_frames_reader:
+            gif_frames.append(frame[:, :, :3])
+    except:
+        pass
+
+    # Append new frame
+    im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0),
+                     '%s epoch' % str(epoch_number), (10, 10), cv2.FONT_HERSHEY_SIMPLEX, .4, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+    gif_frames.append(im)
+
+    # If frames exceeds, save as different file
+    if len(gif_frames) > MAX_FRAMES_PER_GIF:
+        print("Splitting the GIF...")
+        gif_frames_00 = gif_frames[:MAX_FRAMES_PER_GIF]
+        num_of_gifs_already_saved = len(glob.glob(os.path.join("../../figures", model_name, model_name + "_%s_*.gif" % suffix)))
+        print("Saving", os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)))
+        imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)), gif_frames_00)
+        gif_frames = gif_frames[MAX_FRAMES_PER_GIF:]
+
+    # Save gif
+    print("Saving", os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
+    imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
+
+
+def plot_losses(disc_losses, disc_losses_real, disc_losses_gen, gen_losses,
+                model_name, init_epoch=0):
+    epochs = np.arange(len(disc_losses)) + init_epoch
+    fig = plt.figure()
+    plt.plot(epochs, disc_losses, linewidth=2, label='D')
+    plt.plot(epochs, disc_losses_real, linewidth=1, label='D_real')
+    plt.plot(epochs, disc_losses_gen, linewidth=1, label='D_gen')
+    plt.plot(epochs, gen_losses, linewidth=2, label='G')
+    plt.legend()
+    plt.title("Losses")
+    plt.xlabel("Epochs")
+    plt.savefig(os.path.join("../../figures", model_name, model_name + "_losses.png"), bbox_inches='tight')
     plt.clf()
     plt.close()
 
