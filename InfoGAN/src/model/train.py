@@ -1,10 +1,13 @@
+import datetime
 import os
 import sys
 import time
 import models as models
+
 from keras.utils import generic_utils
 from keras.optimizers import Adam, SGD
 import keras.backend as K
+
 # Utils
 sys.path.append("../utils")
 import general_utils
@@ -121,14 +124,16 @@ def train(**kwargs):
 
         # Start training
         print("Start training")
+
+        start = time.time()
         for e in range(nb_epoch):
 
-            print('--------------------------------\nEpoch %s/%s\n' % (e + 1, nb_epoch))
+            print('--------------------------------------------')
+            print('[{0:%Y/%m/%d %H:%M:%S}] Epoch {1:d}/{2:d}\n' % (datetime.datetime.now(), e + 1, nb_epoch))
 
             # Initialize progbar and batch counter
             progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 1
-            start = time.time()
 
             for batch_counter in range(n_batch_per_epoch):
 
@@ -183,10 +188,10 @@ def train(**kwargs):
                 data_utils.plot_generated_batch(X_real_batch, generator_model, e, batch_size,
                                                 cat_dim, cont_dim, noise_dim, image_data_format, model_name,)
 
-            print("")
-            print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
-
             if e % save_weights_every_n_epochs == 0:
+
+                print("Saving weights...")
+
                 # Delete all but the last n weights
                 general_utils.purge_weights(save_only_last_n_weights, model_name)
 
@@ -199,6 +204,11 @@ def train(**kwargs):
 
                 DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d.h5' % (model_name, e))
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
+
+            end = time.time()
+            print("")
+            print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, end - start))
+            start = end
 
     except KeyboardInterrupt:
         pass

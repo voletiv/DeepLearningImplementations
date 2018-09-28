@@ -227,7 +227,7 @@ def plot_generated_batch(X_real, generator_model, epoch_number,
 
     # Append new frame
     im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0),
-                     'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+                     'iter %s' % str(epoch_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
     gif_frames.append(im)
 
     # If frames exceeds, save as different file

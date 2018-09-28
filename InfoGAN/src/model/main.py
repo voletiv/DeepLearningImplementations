@@ -80,7 +80,8 @@ if __name__ == "__main__":
     import train
     import eval
 
-    model_name = "InfoGAN_{0:%Y%m%d_%H%M%S}_{1}".format(datetime.datetime.now(), os.path.basename(args.dset))
+    model_name = "InfoGAN_{0:%Y%m%d_%H%M%S}_{1}".format(datetime.datetime.now(), os.path.basename(args.dset.rstrip('/')))
+    print("\n\nMODEL NAME:", model_name, '\n\n')
 
     # Set default params
     d_params = {"dset": args.dset,
