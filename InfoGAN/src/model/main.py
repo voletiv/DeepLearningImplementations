@@ -25,8 +25,8 @@ if __name__ == "__main__":
     parser.add_argument('--dont_load_from_dir', action="store_true", help="Whether to load images from dir for every batch")
     parser.add_argument('--target_size', default=256, type=int, help="Target_size to resize every image")
     parser.add_argument('--batch_size', default=8, type=int, help='Batch size')
-    parser.add_argument('--n_batch_per_epoch', default=16, type=int, help="Number of training epochs")
-    parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
+    parser.add_argument('--n_batch_per_epoch', default=25, type=int, help="Number of training epochs")
+    parser.add_argument('--nb_epoch', default=2000, type=int, help="Number of batches per epoch")
     parser.add_argument('--eval_epoch', default=10, type=int, help="Epoch at which weights were saved for evaluation")
     parser.add_argument('--do_plot', default=False, type=bool, help="Debugging plot")
     parser.add_argument('--celebA_img_dim', default=64, type=int, help="Image width == height (only specify for CelebA)")
@@ -103,7 +103,8 @@ if __name__ == "__main__":
                 "load_from_dir": load_from_dir,
                 "target_size": target_size,
                 "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
-                "save_only_last_n_weights": args.save_only_last_n_weights
+                "save_only_last_n_weights": args.save_only_last_n_weights,
+                "visualize_images_every_n_epochs": args.visualize_images_every_n_epochs
                 }
 
     if args.mode == "train":
