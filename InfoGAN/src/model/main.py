@@ -39,8 +39,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_mbd', action="store_true", help="use mini batch disc")
     parser.add_argument('--label_flipping', default=0, type=float,
                         help="Probability (0 to 1.) to flip the labels when training D")
-    parser.add_argument('--save_weights_every_n_epochs', default=5, type=int, help="Choose freq of saving weights")
+    parser.add_argument('--save_weights_every_n_epochs', default=10, type=int, help="Choose freq of saving weights")
     parser.add_argument('--save_only_last_n_weights', default=5, type=int, help="Choose number of weights to keep")
+    parser.add_argument('--visualize_images_every_n_epochs', default=10, type=int, help="Choose freq of epochs to plot")
 
     args = parser.parse_args()
 

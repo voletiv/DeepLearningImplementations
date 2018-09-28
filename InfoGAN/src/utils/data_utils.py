@@ -1,12 +1,14 @@
-from keras.datasets import mnist
-from keras.utils import np_utils
+import cv2
+import h5py
+import imageio
 import numpy as np
 import os
-import h5py
 
 import matplotlib.pylab as plt
 
+from keras.datasets import mnist
 from keras.preprocessing.image import ImageDataGenerator
+from keras.utils import np_utils
 
 
 def normalization(X):
@@ -158,8 +160,10 @@ def get_gen_batch(batch_size, cat_dim, cont_dim, noise_dim, noise_scale=0.5):
     return X_gen, y_gen, y_cat, y_cont, y_cont_target
 
 
-def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim, noise_dim, image_data_format, model_name,
-                         noise_scale=0.5):
+def plot_generated_batch(X_real, generator_model, epoch_number,
+                         batch_size, cat_dim, cont_dim, noise_dim,
+                         image_data_format, model_name,
+                         noise_scale=0.5, suffix='training', MAX_FRAMES_PER_GIF=100):
 
     # Generate images
     y_cat = sample_cat(batch_size, cat_dim)
@@ -193,11 +197,51 @@ def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim,
         Xr = np.concatenate(list_rows, axis=1)
         Xr = Xr.transpose(1,2,0)
 
-    if Xr.shape[-1] == 1:
-        plt.imshow(Xr[:, :, 0], cmap="gray")
-    else:
-        plt.imshow(Xr)
-    plt.axis('off')
-    plt.savefig(os.path.join("../../figures", model_name, "current_batch.png"), bbox_inches='tight')
-    plt.clf()
-    plt.close()
+    # Make iter text
+    text_image = cv2.putText(np.zeros((32, Xr.shape[1], Xr.shape[2])),
+                             'iter %s' % str(epoch_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+
+    image = np.vstack((text_image, Xr))
+
+    # if Xr.shape[-1] == 1:
+    #     plt.imshow(Xr[:, :, 0], cmap="gray")
+    # else:
+    #     plt.imshow(Xr)
+    # plt.axis('off')
+    # plt.savefig(os.path.join("../../figures", model_name, "current_batch.png"), bbox_inches='tight')
+    # plt.clf()
+    # plt.close()
+
+    imageio.imsave(os.path.join("../../figures", model_name, model_name + "_current_batch_%s.png" % suffix), image)
+
+    # Make gif
+    gif_frames = []
+
+    # Read old gif frames
+    try:
+        gif_frames_reader = imageio.get_reader(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
+        for frame in gif_frames_reader:
+            gif_frames.append(frame[:, :, :3])
+    except:
+        pass
+
+    # Append new frame
+    im = cv2.putText(np.concatenate((np.zeros((32, Xg[0].shape[1], Xg[0].shape[2])), Xg[0]), axis=0),
+                     'iter %s' % str(iteration_number), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1, cv2.LINE_AA).astype('uint8')
+    gif_frames.append(im)
+
+    # If frames exceeds, save as different file
+    if len(gif_frames) > MAX_FRAMES_PER_GIF:
+        print("Splitting the GIF...")
+        gif_frames_00 = gif_frames[:MAX_FRAMES_PER_GIF]
+        num_of_gifs_already_saved = len(glob.glob(os.path.join("../../figures", model_name, model_name + "_%s_*.gif" % suffix)))
+        print("Saving", os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)))
+        imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s_%03d.gif" % (suffix, num_of_gifs_already_saved)), gif_frames_00)
+        gif_frames = gif_frames[MAX_FRAMES_PER_GIF:]
+
+    # Save gif
+    print("Saving", os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
+    imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
+
+
+

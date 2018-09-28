@@ -54,6 +54,7 @@ def train(**kwargs):
     target_size = kwargs["target_size"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
     save_only_last_n_weights = kwargs["save_only_last_n_weights"]
+    visualize_images_every_n_epochs = kwargs["visualize_images_every_n_epochs"]
     epoch_size = n_batch_per_epoch * batch_size
 
     # Setup environment (logging directory etc)
@@ -171,11 +172,16 @@ def train(**kwargs):
                                                 ("G cat", gen_loss[2]),
                                                 ("G cont", gen_loss[3])])
 
-                # Save images for visualization
-                if batch_counter % (n_batch_per_epoch / 2) == 0:
-                    data_utils.plot_generated_batch(X_real_batch, generator_model,
-                                                    batch_size, cat_dim, cont_dim, noise_dim,
-                                                    image_data_format, model_name)
+                # # Save images for visualization
+                # if batch_counter % (n_batch_per_epoch / 2) == 0:
+                #     data_utils.plot_generated_batch(X_real_batch, generator_model, e,
+                #                                     batch_size, cat_dim, cont_dim, noise_dim,
+                #                                     image_data_format, model_name)
+
+            # Save images for visualization
+            if (e + 1) % visualize_images_every_n_epochs == 0:
+                data_utils.plot_generated_batch(X_real_batch, generator_model, e, batch_size,
+                                                cat_dim, cont_dim, noise_dim, image_data_format, model_name,)
 
             print("")
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
