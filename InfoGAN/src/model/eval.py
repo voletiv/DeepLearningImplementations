@@ -22,7 +22,7 @@ def eval(**kwargs):
     bn_mode = kwargs["bn_mode"]
     noise_scale = kwargs["noise_scale"]
     dset = kwargs["dset"]
-    epoch = kwargs["epoch"]
+    eval_epoch = kwargs["eval_epoch"]
 
     # Setup environment (logging directory etc)
     general_utils.setup_logging(**kwargs)
@@ -45,8 +45,8 @@ def eval(**kwargs):
                                   dset=dset)
 
     # Load colorization model
-    generator_model.load_weights("../../models/%s/gen_weights_epoch%s.h5" %
-                                 (model_name, epoch))
+    generator_model.load_weights("../../models/%s/gen_weights_epoch%05d.h5" %
+                                 (model_name, eval_epoch))
 
     X_plot = []
     # Vary the categorical variable

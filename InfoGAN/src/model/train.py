@@ -41,7 +41,7 @@ def train(**kwargs):
     generator = kwargs["generator"]
     model_name = kwargs["model_name"]
     image_data_format = kwargs["image_data_format"]
-    img_dim = kwargs["img_dim"]
+    celebA_img_dim = kwargs["celebA_img_dim"]
     cont_dim = (kwargs["cont_dim"],)
     cat_dim = (kwargs["cat_dim"],)
     noise_dim = (kwargs["noise_dim"],)
@@ -53,6 +53,7 @@ def train(**kwargs):
     load_from_dir = kwargs["load_from_dir"]
     target_size = kwargs["target_size"]
     save_weights_every_n_epochs = kwargs["save_weights_every_n_epochs"]
+    save_only_last_n_weights = kwargs["save_only_last_n_weights"]
     epoch_size = n_batch_per_epoch * batch_size
 
     # Setup environment (logging directory etc)
@@ -60,7 +61,7 @@ def train(**kwargs):
 
     # Load and rescale data
     if dset == "celebA":
-        X_real_train = data_utils.load_celebA(img_dim, image_data_format)
+        X_real_train = data_utils.load_celebA(celebA_img_dim, image_data_format)
     elif dset == "mnist":
         X_real_train, _, _, _ = data_utils.load_mnist(image_data_format)
     else:
@@ -120,6 +121,9 @@ def train(**kwargs):
         # Start training
         print("Start training")
         for e in range(nb_epoch):
+
+            print('--------------------------------\nEpoch %s/%s\n' % (e + 1, nb_epoch))
+
             # Initialize progbar and batch counter
             progbar = generic_utils.Progbar(epoch_size)
             batch_counter = 1
@@ -177,14 +181,22 @@ def train(**kwargs):
             print('Epoch %s/%s, Time: %s' % (e + 1, nb_epoch, time.time() - start))
 
             if e % save_weights_every_n_epochs == 0:
-                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%s.h5' % (model_name, e))
+                # Delete all but the last n weights
+                purge_weights(save_only_last_n_weights, model_name)
+
+                # Save weights
+                gen_weights_path = os.path.join('../../models/%s/gen_weights_epoch%05d.h5' % (model_name, e))
                 generator_model.save_weights(gen_weights_path, overwrite=True)
 
-                disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%s.h5' % (model_name, e))
+                disc_weights_path = os.path.join('../../models/%s/disc_weights_epoch%05d.h5' % (model_name, e))
                 discriminator_model.save_weights(disc_weights_path, overwrite=True)
 
-                DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%s.h5' % (model_name, e))
+                DCGAN_weights_path = os.path.join('../../models/%s/DCGAN_weights_epoch%05d.h5' % (model_name, e))
                 DCGAN_model.save_weights(DCGAN_weights_path, overwrite=True)
 
     except KeyboardInterrupt:
         pass
+
+    gen_weights_path = '../../models/%s/generator_latest.h5' % (model_name)
+    print("Saving", gen_weights_path)
+    generator_model.save(gen_weights_path, overwrite=True)

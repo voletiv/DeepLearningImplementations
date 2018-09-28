@@ -61,3 +61,17 @@ def setup_logging(**kwargs):
     with open(os.path.join(fig_dir, 'config.txt'), 'w') as f:
         for i in kwargs:
             f.write(str(i) + ' ' + str(kwargs[i]) + '\n')
+
+
+def purge_weights(n, model_name):
+    gen_weight_files = sorted(glob.glob('../../models/%s/gen_weights*' % model_name))
+    for gen_weight_file in gen_weight_files[:-n]:
+        os.remove(os.path.realpath(gen_weight_file))
+
+    disc_weight_files = sorted(glob.glob('../../models/%s/disc_weights*' % model_name))
+    for disc_weight_file in disc_weight_files[:-n]:
+        os.remove(os.path.realpath(disc_weight_file))
+
+    DCGAN_weight_files = sorted(glob.glob('../../models/%s/DCGAN_weights*' % model_name))
+    for DCGAN_weight_file in DCGAN_weight_files[:-n]:
+        os.remove(os.path.realpath(DCGAN_weight_file))

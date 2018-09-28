@@ -197,6 +197,7 @@ def plot_generated_batch(X_real, generator_model, batch_size, cat_dim, cont_dim,
         plt.imshow(Xr[:, :, 0], cmap="gray")
     else:
         plt.imshow(Xr)
-    plt.savefig(os.path.join("../../figures", model_name, "current_batch.png"))
+    plt.axis('off')
+    plt.savefig(os.path.join("../../figures", model_name, "current_batch.png"), bbox_inches='tight')
     plt.clf()
     plt.close()

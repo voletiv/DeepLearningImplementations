@@ -27,10 +27,9 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=8, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', default=16, type=int, help="Number of training epochs")
     parser.add_argument('--nb_epoch', default=400, type=int, help="Number of batches per epoch")
-    parser.add_argument('--epoch', default=10, type=int, help="Epoch at which weights were saved for evaluation")
-    parser.add_argument('--nb_classes', default=2, type=int, help="Number of classes")
+    parser.add_argument('--eval_epoch', default=10, type=int, help="Epoch at which weights were saved for evaluation")
     parser.add_argument('--do_plot', default=False, type=bool, help="Debugging plot")
-    parser.add_argument('--img_dim', default=64, type=int, help="Image width == height (only specify for CelebA)")
+    parser.add_argument('--celebA_img_dim', default=64, type=int, help="Image width == height (only specify for CelebA)")
     parser.add_argument('--noise_dim', default=64, type=int, help="noise dimension")
     parser.add_argument('--cont_dim', default=4, type=int, help="Latent continuous dimensions")
     parser.add_argument('--cat_dim', default=8, type=int, help="Latent categorical dimension")
@@ -41,6 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('--label_flipping', default=0, type=float,
                         help="Probability (0 to 1.) to flip the labels when training D")
     parser.add_argument('--save_weights_every_n_epochs', default=5, type=int, help="Choose freq of saving weights")
+    parser.add_argument('--save_only_last_n_weights', default=5, type=int, help="Choose number of weights to keep")
 
     args = parser.parse_args()
 
@@ -88,11 +88,10 @@ if __name__ == "__main__":
                 "n_batch_per_epoch": args.n_batch_per_epoch,
                 "nb_epoch": args.nb_epoch,
                 "model_name": model_name,
-                "epoch": args.epoch,
-                "nb_classes": args.nb_classes,
+                "eval_epoch": args.epoch,
                 "do_plot": args.do_plot,
                 "image_data_format": image_data_format,
-                "img_dim": args.img_dim,
+                "celebA_img_dim": args.celebA_img_dim,
                 "noise_dim": args.noise_dim,
                 "cat_dim": args.cat_dim,
                 "cont_dim": args.cont_dim,
@@ -102,7 +101,8 @@ if __name__ == "__main__":
                 "use_mbd": args.use_mbd,
                 "load_from_dir": load_from_dir,
                 "target_size": target_size,
-                "save_weights_every_n_epochs": args.save_weights_every_n_epochs
+                "save_weights_every_n_epochs": args.save_weights_every_n_epochs,
+                "save_only_last_n_weights": args.save_only_last_n_weights
                 }
 
     if args.mode == "train":
