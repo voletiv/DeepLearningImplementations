@@ -1,4 +1,5 @@
 import cv2
+import glob
 import h5py
 import imageio
 import numpy as np
@@ -263,6 +264,3 @@ def plot_generated_batch(X_real, generator_model, epoch_number,
     # Save gif
     print("Saving", os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix))
     imageio.mimsave(os.path.join("../../figures", model_name, model_name + "_%s.gif" % suffix), gif_frames)
-
-
-
